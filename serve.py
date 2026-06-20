@@ -3,7 +3,7 @@ import os
 import sys
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 9080
-BASE = os.path.join(os.path.dirname(__file__), "frontend")
+BASE = os.path.join(os.path.dirname(__file__), "frontend", "admin")
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -15,7 +15,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             path = "/"
 
         if path == "/":
-            path = "/admin/index.html"
+            path = "/index.html"
 
         full = os.path.normpath(os.path.join(BASE, path.lstrip("/")))
         if not full.startswith(os.path.normpath(BASE)):
@@ -48,6 +48,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     srv = http.server.HTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"Serving frontend/ at http://0.0.0.0:{PORT}")
+    print(f"Serving admin/ at http://0.0.0.0:{PORT}")
     print(f"Prefix /forms/ stripped (tailscale serve --set-path /forms/)")
     srv.serve_forever()
