@@ -7,8 +7,15 @@ Sistema de triagem, atendimento e relatório de clientes — NextLevelCode.
 ```
 nlc-forms/
 ├── backend/
-│   ├── main.py              # FastAPI + SQLite — toda a API
-│   ├── pdf_relatorio.py     # Geração do PDF final (reportlab)
+│   ├── app/                  # FastAPI modular (config, database, auth, routers…)
+│   │   ├── config.py         #   Variáveis de ambiente
+│   │   ├── database.py       #   SQLite — init, seed, get_db
+│   │   ├── models.py         #   Pydantic models
+│   │   ├── auth.py           #   Tokens, admin key, validação
+│   │   ├── notify.py         #   Notificação por e-mail (SMTP)
+│   │   ├── ratelimit.py      #   Rate limiter em memória
+│   │   └── routers/          #   admin, triagem, consulta, token, health
+│   ├── pdf_relatorio.py      # Geração do PDF final (reportlab)
 │   ├── pyproject.toml
 │   └── Dockerfile
 ├── frontend/
@@ -16,11 +23,13 @@ nlc-forms/
 │   ├── triagem-seguranca.html       # Formulário do cliente — Segurança Digital
 │   ├── triagem-desenvolvimento.html # Formulário do cliente — Dev & Automação
 │   ├── admin-gerar-token.html       # Você gera o link a enviar no WhatsApp
-│   └── painel-atendimento.html      # Você preenche o atendimento e gera o PDF
-├── scripts/
-│   ├── backup.sh             # Backup .db + .json, retenção de 7 dias
-│   └── restore.sh            # Restaura a partir de um backup .db
-└── docker-compose.yml
+│   ├── painel-atendimento.html      # Você preenche o atendimento e gera o PDF
+│   └── logo.png                     # Logo usada nos formulários
+├── compose.yml               # Docker Compose com env vars
+├── .env.example              # Template de configuração (commitado)
+├── .env                      # Configuração real (ignorado pelo git)
+├── backup.sh                 # Backup .db + .json, retenção de 7 dias
+└── restore.sh                # Restaura a partir de um backup .db
 ```
 
 ## Fluxo completo
@@ -58,16 +67,28 @@ Acesse:
 - `http://localhost:9080/admin-gerar-token.html` — gerar link de triagem
 - `http://localhost:9080/painel-atendimento.html` — atender e gerar PDF
 
-## Configuração (docker-compose.yml)
+## Configuração
 
-| Variável | Descrição |
-|---|---|
-| `ALLOWED_ORIGINS` | Domínios que podem chamar a API (CORS) |
-| `ADMIN_KEY` | Chave usada para gerar tokens e acessar o painel — **troque o valor padrão** |
-| `TOKEN_TTL_HOURS` | Validade padrão dos links de triagem, em horas |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | Configuração de e-mail. Deixe `SMTP_HOST` vazio para desativar notificações |
-| `NOTIFY_TO` | Seu e-mail — recebe a notificação de nova triagem |
-| `PAINEL_BASE_URL` | URL base de onde o frontend está servido — usada para montar o link no e-mail |
+Todas as variáveis são lidas do ambiente via `.env`. Copie `.env.example` para `.env` e ajuste:
+
+```bash
+cp .env.example .env
+```
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `ALLOWED_ORIGINS` | `http://localhost:3000,…` | Domínios permitidos (CORS) |
+| `ADMIN_KEY` | `troque-essa-chave` | Chave do painel — **troque em produção** |
+| `TOKEN_TTL_HOURS` | `48` | Validade padrão dos links de triagem |
+| `SMTP_HOST` | vazio | Servidor SMTP (vazio = sem notificações) |
+| `SMTP_PORT` | `587` | Porta SMTP |
+| `SMTP_USER` | vazio | Usuário do SMTP |
+| `SMTP_PASS` | vazio | Senha do SMTP |
+| `SMTP_FROM` | (= SMTP_USER) | Remetente do e-mail |
+| `NOTIFY_TO` | vazio | Seu e-mail (recebe notificações) |
+| `PAINEL_BASE_URL` | `http://localhost:9080` | URL base do frontend |
+| `RATE_LIMIT` | `10` | Requisições por janela (por IP) |
+| `RATE_LIMIT_WINDOW` | `60` | Janela do rate limit em segundos |
 
 ## Produção no Raspberry Pi
 
@@ -77,12 +98,11 @@ Acesse:
 scp -r nlc-forms/ pi@<ip-do-pi>:~/
 ```
 
-### 2. Atualizar configuração no docker-compose.yml
+### 2. Configurar via .env
 
-```yaml
-ALLOWED_ORIGINS: "https://nextlevelcode.pro,https://www.nextlevelcode.pro"
-ADMIN_KEY: "<gere uma chave forte aqui>"
-PAINEL_BASE_URL: "https://<seu-dominio-do-painel>"
+```bash
+cp .env.example .env
+# Edite .env com seus valores de produção
 ```
 
 ### 3. Subir no Pi
@@ -118,16 +138,16 @@ Depois fazer deploy dos HTMLs de triagem na Vercel (públicos).
 
 ## Backup e restauração
 
-Os scripts ficam em `scripts/` e operam sobre o container Docker — não precisam que a API esteja parada.
+Os scripts `backup.sh` e `restore.sh` ficam na raiz do projeto e operam sobre o container Docker — não precisam que a API esteja parada.
 
 ### Configurar o backup automático no Pi
 
 ```bash
-# Tornar os scripts executáveis (necessário após copiar para o Pi)
-chmod +x scripts/backup.sh scripts/restore.sh
+# Tornar os scripts executáveis
+chmod +x backup.sh restore.sh
 
 # Testar manualmente primeiro
-./scripts/backup.sh
+./backup.sh
 ```
 
 Isso cria a pasta `backups/` com dois arquivos por execução:
@@ -145,24 +165,24 @@ crontab -e
 Adicione a linha (ajuste o caminho para onde o projeto está no Pi):
 
 ```
-0 3 * * * /home/pi/nlc-forms/scripts/backup.sh >> /home/pi/nlc-forms/scripts/backup.log 2>&1
+0 3 * * * /home/pi/nlc-forms/backup.sh >> /home/pi/nlc-forms/backup.log 2>&1
 ```
 
 Verifique se está rodando:
 
 ```bash
 crontab -l
-tail -f scripts/backup.log
+tail -f backup.log
 ```
 
 ### Restaurar um backup
 
 ```bash
 # Listar backups disponíveis
-./scripts/restore.sh --list
+./restore.sh --list
 
 # Restaurar um específico
-./scripts/restore.sh backups/forms_2026-06-20_030000.db
+./restore.sh backups/forms_2026-06-20_030000.db
 ```
 
 O script salva automaticamente o estado atual antes de sobrescrever (`pre_restore_<timestamp>.db`), então é possível reverter se restaurar o backup errado.
@@ -207,7 +227,8 @@ Abrir com [DB Browser for SQLite](https://sqlitebrowser.org/) para consultar ou 
 | POST | `/triagem/suporte` | Cliente envia a triagem de suporte |
 | POST | `/triagem/seguranca` | Cliente envia a triagem de segurança |
 | POST | `/triagem/desenvolvimento` | Cliente envia a triagem de dev |
-| GET | `/consulta?codigo=X` ou `?email=X` | Cliente consulta status pelo código ou e-mail |
+| GET | `/consulta?codigo=X` | Consulta pública por código |
+| GET | `/consulta?email=X` | Consulta por e-mail (requer `X-Admin-Key`) |
 | GET | `/admin/triagem/{codigo}` | Painel busca triagem + execução (requer admin) |
 | GET | `/admin/catalogo?servico=X` | Painel busca itens do catálogo (requer admin) |
 | POST | `/admin/execucao` | Painel salva o atendimento (requer admin) |
