@@ -59,19 +59,21 @@ curl http://localhost:8000/health
 # → {"status":"ok"}
 ```
 
-Sirva a `frontend/` com um servidor estático:
+Pasta `public/` vai pra Vercel (domínio público separado).
+
+Pasta `admin/` serve localmente:
 
 ```bash
-# Na raiz do projeto
-python3 -m http.server 9080 -d frontend
+python3 -m http.server 9080 -d frontend/admin &
 ```
 
-Acesse:
-- **Público** → `http://localhost:9080/public/triagem-suporte.html`
-- **Admin** → `http://localhost:9080/admin/painel-atendimento.html`
+Exponha na tailnet com Tailscale Serve:
 
-Para produção, faça deploy só da pasta `public/` na Vercel/Netlify.
-Os arquivos `admin/` ficam apenas no seu computador/Pi.
+```bash
+tailscale serve --bg http://localhost:9080
+```
+
+Acesse pelo domínio tailnet da máquina (ex: `https://admin.tailXXXXX.ts.net`).
 
 ## Configuração
 
