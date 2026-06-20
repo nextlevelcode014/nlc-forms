@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel de Atendimento — NextLevelCode</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #0a0a0c;
+      --surface:      #131316;
+      --surface-2:    #1a1a1e;
+      --border:       #1f1f24;
+      --primary:      #4f8ef7;
+      --accent:       #f97316;
+      --text:         #e8e8ea;
+      --muted:        #8a8a92;
+      --muted-darker: #5a5a62;
+      --error:        #ef4444;
+      --success:      #22c55e;
+      --radius:       8px;
+      --font-mono:    'JetBrains Mono', monospace;
+      --font-sans:    'Inter', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 2rem 1rem 5rem;
+    }
+
+    .wrap { max-width: 880px; margin: 0 auto; }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 2rem;
+    }
+
+    .logo-mark { width: 32px; height: 32px; }
+
+    .logo-text {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .badge {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid rgba(249, 115, 22, 0.3);
+      background: rgba(249, 115, 22, 0.08);
+      padding: 3px 8px;
+      border-radius: 20px;
+    }
+
+    /* ── Login gate ── */
+    .login-card {
+      max-width: 420px;
+      margin: 4rem auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+    }
+
+    .login-card h1 {
+      font-family: var(--font-mono);
+      font-size: 19px;
+      margin-bottom: 0.4rem;
+    }
+
+    .login-card p {
+      font-size: 13.5px;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Form elements (generic) ── */
+    .field { margin-bottom: 1rem; }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 0.4rem;
+      color: var(--text);
+    }
+
+    label .hint { font-weight: 400; color: var(--muted-darker); font-size: 12px; margin-left: 4px; }
+
+    input, select, textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      padding: 0.6rem 0.8rem;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input[type="password"] { font-family: var(--font-mono); letter-spacing: 0.05em; }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 142, 247, 0.12);
+    }
+
+    textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8a92' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.8rem center;
+      padding-right: 2rem;
+      cursor: pointer;
+    }
+
+    select option { background: var(--surface-2); }
+
+    button {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      border: none;
+      border-radius: var(--radius);
+      padding: 0.65rem 1.3rem;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    button:hover { opacity: 0.85; }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-accent  { background: var(--accent); color: #fff; }
+    .btn-ghost   { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+    .btn-full    { width: 100%; }
+    .btn-sm      { font-size: 12px; padding: 0.4rem 0.8rem; }
+
+    /* ── Search bar ── */
+    .search-bar {
+      display: flex;
+      gap: 0.6rem;
+      margin-bottom: 2rem;
+    }
+
+    .search-bar input { flex: 1; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .card-title {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-title::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    /* ── Cliente header ── */
+    .cliente-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .cliente-nome {
+      font-family: var(--font-mono);
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .cliente-codigo {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--accent);
+      background: rgba(249, 115, 22, 0.08);
+      border: 1px solid rgba(249, 115, 22, 0.25);
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+
+    .cliente-meta {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .servico-tag {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--primary);
+      margin-bottom: 1rem;
+    }
+
+    /* ── Triagem read-only grid ── */
+    .triagem-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.9rem 1.5rem;
+    }
+
+    .triagem-item { font-size: 13.5px; }
+
+    .triagem-item .t-label {
+      color: var(--muted-darker);
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 2px;
+    }
+
+    .triagem-item .t-value { color: var(--text); line-height: 1.5; }
+
+    .triagem-item.full { grid-column: 1 / -1; }
+
+    /* ── Status badge / select ── */
+    .status-select {
+      width: auto;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 0.4rem 0.7rem;
+    }
+
+    /* ── Itens de orçamento ── */
+    .item-add-row {
+      display: flex;
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .item-add-row .field { margin-bottom: 0; flex: 1; min-width: 160px; }
+    .item-add-row .field.qtd { flex: 0 0 70px; min-width: 70px; }
+    .item-add-row .field.valor { flex: 0 0 110px; min-width: 110px; }
+
+    .itens-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      margin-bottom: 1rem;
+    }
+
+    .itens-table th {
+      text-align: left;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted-darker);
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .itens-table td {
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .itens-table .col-valor { text-align: right; font-family: var(--font-mono); }
+    .itens-table .col-acao { text-align: right; width: 40px; }
+
+    .remove-item-btn {
+      background: none;
+      border: none;
+      color: var(--muted-darker);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 0.2rem 0.4rem;
+    }
+
+    .remove-item-btn:hover { color: var(--error); }
+
+    .itens-empty {
+      text-align: center;
+      color: var(--muted-darker);
+      font-size: 13px;
+      padding: 1.5rem 0;
+      font-family: var(--font-mono);
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: baseline;
+      gap: 0.75rem;
+      padding-top: 0.75rem;
+    }
+
+    .total-label {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .total-valor {
+      font-family: var(--font-mono);
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    /* ── Catalog dropdown ── */
+    .catalogo-hint {
+      font-size: 12px;
+      color: var(--muted-darker);
+      margin-bottom: 0.6rem;
+      font-family: var(--font-mono);
+    }
+
+    /* ── Actions footer ── */
+    .actions-bar {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    /* ── Feedback ── */
+    #feedback, #feedback-exec {
+      display: none;
+      margin: 1rem 0;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-family: var(--font-mono);
+    }
+
+    .fb-error {
+      display: block !important;
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid var(--error);
+      color: var(--error);
+    }
+
+    .fb-success {
+      display: block !important;
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+
+    /* ── Loading / empty states ── */
+    .state-msg {
+      text-align: center;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 3rem 1rem;
+    }
+
+    #resultado-busca { display: none; }
+    #resultado-busca.show { display: block; }
+
+    @media (max-width: 640px) {
+      .triagem-grid { grid-template-columns: 1fr; }
+      .item-add-row .field { flex: 1 1 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="wrap">
+    <header>
+      <svg class="logo-mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6 28L14 8L22 28" stroke="#4f8ef7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 8L30 28" stroke="#f97316" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="logo-text">NextLevelCode</span>
+      <span class="badge">Admin</span>
+    </header>
+
+    <!-- ── Login gate ── -->
+    <div id="login-gate" class="login-card">
+      <h1>$ painel de atendimento</h1>
+      <p>Informe a chave de admin para acessar os dados dos clientes.</p>
+      <div class="field">
+        <label for="admin-key">Chave de admin</label>
+        <input type="password" id="admin-key" placeholder="••••••••••••" autocomplete="off" />
+      </div>
+      <button class="btn-primary btn-full" id="btn-entrar">Entrar →</button>
+      <div id="feedback"></div>
+    </div>
+
+    <!-- ── Main content (hidden until logged in) ── -->
+    <div id="main-content" style="display:none">
+
+      <div class="search-bar">
+        <input type="text" id="busca-codigo" placeholder="Código da triagem (ex: NLC-AB12-CD34)" />
+        <select id="busca-servico" style="max-width: 200px;">
+          <option value="suporte">Suporte Técnico</option>
+          <option value="seguranca">Segurança e Privacidade</option>
+          <option value="desenvolvimento">Dev &amp; Automação</option>
+        </select>
+        <button class="btn-primary" id="btn-buscar">Buscar</button>
+      </div>
+
+      <div id="feedback-busca"></div>
+
+      <div id="estado-vazio" class="state-msg">
+        Busque uma triagem pelo código para começar o atendimento.
+      </div>
+
+      <div id="resultado-busca">
+
+        <!-- ── Card: Triagem do cliente (somente leitura) ── -->
+        <div class="card">
+          <div class="cliente-header">
+            <span class="cliente-nome" id="cliente-nome">—</span>
+            <span class="cliente-codigo" id="cliente-codigo">—</span>
+          </div>
+          <div class="servico-tag" id="cliente-servico">—</div>
+          <div class="cliente-meta" id="cliente-meta">—</div>
+
+          <div style="height:1px; background:var(--border); margin: 1rem 0;"></div>
+
+          <div class="triagem-grid" id="triagem-grid"></div>
+        </div>
+
+        <!-- ── Card: Execução do atendimento ── -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Execução do atendimento</span>
+            <select id="status-select" class="status-select">
+              <option value="pendente">Pendente</option>
+              <option value="em_andamento">Em andamento</option>
+              <option value="concluido" selected>Concluído</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="data-atendimento">Data do atendimento <span class="hint">(opcional)</span></label>
+            <input type="text" id="data-atendimento" placeholder="Ex: 20/06/2026" />
+          </div>
+
+          <div class="field">
+            <label for="validade-orcamento">Orçamento válido até <span class="hint">(aparece no PDF, opcional)</span></label>
+            <input type="text" id="validade-orcamento" placeholder="Ex: 27/06/2026 ou 'válido por 7 dias'" />
+          </div>
+
+          <div class="field">
+            <label for="diagnostico">Diagnóstico</label>
+            <textarea id="diagnostico" placeholder="O que foi encontrado como causa raiz do problema..."></textarea>
+          </div>
+
+          <div class="field">
+            <label for="servicos-realizados">Serviços realizados</label>
+            <textarea id="servicos-realizados" placeholder="O que foi feito durante o atendimento..."></textarea>
+          </div>
+
+          <div class="field">
+            <label for="recomendacoes">Recomendações <span class="hint">(aparece no PDF do cliente)</span></label>
+            <textarea id="recomendacoes" placeholder="Orientações, cuidados futuros, sugestões de upgrade..."></textarea>
+          </div>
+
+          <div class="field">
+            <label for="observacoes-internas">Observações internas <span class="hint">(NÃO aparece no PDF do cliente)</span></label>
+            <textarea id="observacoes-internas" placeholder="Anotações só para você..." style="min-height:60px"></textarea>
+          </div>
+        </div>
+
+        <!-- ── Card: Orçamento ── -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Orçamento</span>
+          </div>
+
+          <p class="catalogo-hint">Selecione um item do catálogo ou adicione um item livre</p>
+
+          <div class="item-add-row">
+            <div class="field">
+              <label for="item-catalogo">Item do catálogo</label>
+              <select id="item-catalogo">
+                <option value="">— Item livre —</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="item-nome">Descrição</label>
+              <input type="text" id="item-nome" placeholder="Nome do item" />
+            </div>
+            <div class="field qtd">
+              <label for="item-qtd">Qtd.</label>
+              <input type="number" id="item-qtd" value="1" min="0.1" step="0.1" />
+            </div>
+            <div class="field valor">
+              <label for="item-valor">Valor unit.</label>
+              <input type="number" id="item-valor" placeholder="0,00" min="0" step="0.01" />
+            </div>
+            <button class="btn-ghost btn-sm" id="btn-add-item" style="margin-bottom: 0;">+ Adicionar</button>
+          </div>
+
+          <table class="itens-table" id="itens-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qtd.</th>
+                <th class="col-valor">Valor unit.</th>
+                <th class="col-valor">Subtotal</th>
+                <th class="col-acao"></th>
+              </tr>
+            </thead>
+            <tbody id="itens-tbody"></tbody>
+          </table>
+
+          <div id="itens-empty" class="itens-empty">Nenhum item adicionado ainda</div>
+
+          <div class="total-row">
+            <span class="total-label">Total</span>
+            <span class="total-valor" id="valor-total">R$ 0,00</span>
+          </div>
+        </div>
+
+        <div id="feedback-exec"></div>
+
+        <div class="actions-bar">
+          <button class="btn-ghost" id="btn-salvar">Salvar atendimento</button>
+          <button class="btn-accent" id="btn-pdf">Gerar PDF do cliente →</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── Configuração ──────────────────────────────────────────
+    const API_BASE = "http://localhost:8000";
+    // ─────────────────────────────────────────────────────────
+
+    let ADMIN_KEY = null;
+    let CODIGO_ATUAL = null;
+    let SERVICO_ATUAL = null;
+    let ITENS = [];
+    let CATALOGO_CACHE = {};
+
+    const CAMPOS_LABEL = {
+      suporte: [
+        ["problema", "Problema relatado"],
+        ["quando", "Quando começou"],
+        ["causa", "Causa suspeita"],
+        ["tentou", "Já tentou resolver"],
+        ["sistema", "Sistema operacional"],
+        ["idade", "Idade do equipamento"],
+        ["armazenamento", "Armazenamento"],
+        ["ram", "Memória RAM"],
+        ["tem_backup", "Tem backup"],
+        ["programas", "Programas essenciais"],
+        ["modalidade", "Modalidade"],
+        ["observacoes", "Observações", "full"],
+      ],
+      seguranca: [
+        ["perfil", "Perfil de uso"],
+        ["dispositivos", "Dispositivos"],
+        ["servicos", "Serviços/contas importantes"],
+        ["preocupacao", "Preocupação principal", "full"],
+        ["incidente", "Já teve incidente"],
+        ["incidente_desc", "Descrição do incidente"],
+        ["usa_2fa", "Usa 2FA"],
+        ["usa_gerenciador", "Usa gerenciador de senhas"],
+        ["tem_backup", "Faz backup"],
+        ["modalidade", "Modalidade"],
+        ["observacoes", "Observações", "full"],
+      ],
+      desenvolvimento: [
+        ["tipo_cliente", "Tipo de cliente"],
+        ["tipo_projeto", "Tipo de projeto"],
+        ["descricao", "Descrição do projeto", "full"],
+        ["tem_referencia", "Tem referência"],
+        ["referencia_url", "Referência"],
+        ["prazo", "Prazo desejado"],
+        ["orcamento", "Faixa de orçamento"],
+        ["ja_tem_algo", "Já tem algo construído"],
+        ["ja_tem_desc", "Descrição do existente"],
+        ["stack_preferida", "Stack preferida"],
+        ["observacoes", "Observações", "full"],
+      ],
+    };
+
+    const SERVICO_LABEL = {
+      suporte: "Suporte Técnico",
+      seguranca: "Segurança e Privacidade Digital",
+      desenvolvimento: "Dev & Automação",
+    };
+
+    // ── Login ──
+    document.getElementById("btn-entrar").addEventListener("click", entrar);
+    document.getElementById("admin-key").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") entrar();
+    });
+
+    async function entrar() {
+      const key = document.getElementById("admin-key").value.trim();
+      if (!key) return;
+
+      // Valida a chave fazendo uma chamada leve ao catálogo
+      try {
+        const res = await fetch(`${API_BASE}/admin/catalogo?servico=suporte`, {
+          headers: { "X-Admin-Key": key },
+        });
+        if (res.status === 401) {
+          showFeedback("feedback", "error", "Chave de admin inválida.");
+          return;
+        }
+        ADMIN_KEY = key;
+        document.getElementById("login-gate").style.display = "none";
+        document.getElementById("main-content").style.display = "block";
+      } catch {
+        showFeedback("feedback", "error", "Não foi possível conectar à API.");
+      }
+    }
+
+    // ── Busca de triagem ──
+    document.getElementById("btn-buscar").addEventListener("click", buscarTriagem);
+    document.getElementById("busca-codigo").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") buscarTriagem();
+    });
+
+    async function buscarTriagem() {
+      const codigo = document.getElementById("busca-codigo").value.trim().toUpperCase();
+      const servico = document.getElementById("busca-servico").value;
+
+      if (!codigo) {
+        showFeedback("feedback-busca", "error", "Informe um código de triagem.");
+        return;
+      }
+
+      document.getElementById("feedback-busca").className = "";
+      document.getElementById("feedback-busca").style.display = "none";
+
+      try {
+        const res = await fetch(
+          `${API_BASE}/admin/triagem/${encodeURIComponent(codigo)}?servico=${servico}`,
+          { headers: { "X-Admin-Key": ADMIN_KEY } }
+        );
+
+        if (res.status === 401) {
+          showFeedback("feedback-busca", "error", "Sessão inválida. Recarregue a página.");
+          return;
+        }
+        if (res.status === 404) {
+          showFeedback("feedback-busca", "error", "Nenhuma triagem encontrada com esse código nesse serviço.");
+          document.getElementById("resultado-busca").classList.remove("show");
+          return;
+        }
+        if (!res.ok) {
+          showFeedback("feedback-busca", "error", "Erro ao buscar triagem.");
+          return;
+        }
+
+        const data = await res.json();
+        CODIGO_ATUAL = codigo;
+        SERVICO_ATUAL = servico;
+
+        renderTriagem(data.triagem, servico);
+        await carregarCatalogo(servico);
+        preencherExecucao(data.execucao);
+
+        document.getElementById("estado-vazio").style.display = "none";
+        document.getElementById("resultado-busca").classList.add("show");
+      } catch {
+        showFeedback("feedback-busca", "error", "Não foi possível conectar à API.");
+      }
+    }
+
+    function renderTriagem(triagem, servico) {
+      document.getElementById("cliente-nome").textContent = triagem.nome || "—";
+      document.getElementById("cliente-codigo").textContent = triagem.codigo || "—";
+      document.getElementById("cliente-servico").textContent = SERVICO_LABEL[servico] || servico;
+
+      const criado = triagem.criado_em ? new Date(triagem.criado_em).toLocaleString("pt-BR") : "—";
+      document.getElementById("cliente-meta").textContent =
+        `${triagem.email || "—"} · ${triagem.telefone || "sem telefone"} · enviado em ${criado}`;
+
+      const grid = document.getElementById("triagem-grid");
+      grid.innerHTML = "";
+
+      const campos = CAMPOS_LABEL[servico] || [];
+
+      if (servico === "suporte") {
+        const marcaModelo = `${triagem.marca || ""} ${triagem.modelo || ""}`.trim();
+        grid.appendChild(triagemItem("Marca / modelo", marcaModelo || "—"));
+      }
+
+      campos.forEach(([chave, label, full]) => {
+        const valor = triagem[chave];
+        if (!valor) return;
+        grid.appendChild(triagemItem(label, valor, full === "full"));
+      });
+    }
+
+    function triagemItem(label, valor, full = false) {
+      const div = document.createElement("div");
+      div.className = "triagem-item" + (full ? " full" : "");
+      div.innerHTML = `<div class="t-label">${label}</div><div class="t-value">${escapeHtml(valor)}</div>`;
+      return div;
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // ── Catálogo ──
+    async function carregarCatalogo(servico) {
+      if (CATALOGO_CACHE[servico]) {
+        popularSelectCatalogo(CATALOGO_CACHE[servico]);
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/admin/catalogo?servico=${servico}`, {
+          headers: { "X-Admin-Key": ADMIN_KEY },
+        });
+        const data = await res.json();
+        CATALOGO_CACHE[servico] = data.itens || [];
+        popularSelectCatalogo(CATALOGO_CACHE[servico]);
+      } catch {
+        // catálogo é conveniência — falha silenciosa, item livre ainda funciona
+      }
+    }
+
+    function popularSelectCatalogo(itens) {
+      const select = document.getElementById("item-catalogo");
+      select.innerHTML = '<option value="">— Item livre —</option>';
+      itens.forEach((item) => {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.dataset.nome = item.nome;
+        opt.dataset.valor = item.valor;
+        opt.textContent = `${item.nome} — R$ ${item.valor.toFixed(2)}`;
+        select.appendChild(opt);
+      });
+    }
+
+    document.getElementById("item-catalogo").addEventListener("change", (e) => {
+      const opt = e.target.selectedOptions[0];
+      if (opt && opt.dataset.nome) {
+        document.getElementById("item-nome").value = opt.dataset.nome;
+        document.getElementById("item-valor").value = opt.dataset.valor;
+      }
+    });
+
+    // ── Itens de orçamento ──
+    document.getElementById("btn-add-item").addEventListener("click", adicionarItem);
+
+    function adicionarItem() {
+      const nome = document.getElementById("item-nome").value.trim();
+      const qtd = parseFloat(document.getElementById("item-qtd").value) || 1;
+      const valor = parseFloat(document.getElementById("item-valor").value) || 0;
+
+      if (!nome) {
+        showFeedback("feedback-exec", "error", "Informe a descrição do item.");
+        return;
+      }
+
+      ITENS.push({ nome, quantidade: qtd, valor_unitario: valor });
+      renderItens();
+
+      document.getElementById("item-catalogo").value = "";
+      document.getElementById("item-nome").value = "";
+      document.getElementById("item-qtd").value = "1";
+      document.getElementById("item-valor").value = "";
+    }
+
+    function removerItem(index) {
+      ITENS.splice(index, 1);
+      renderItens();
+    }
+
+    function renderItens() {
+      const tbody = document.getElementById("itens-tbody");
+      const empty = document.getElementById("itens-empty");
+      tbody.innerHTML = "";
+
+      if (ITENS.length === 0) {
+        empty.style.display = "block";
+      } else {
+        empty.style.display = "none";
+        ITENS.forEach((item, i) => {
+          const subtotal = item.quantidade * item.valor_unitario;
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${escapeHtml(item.nome)}</td>
+            <td>${item.quantidade}</td>
+            <td class="col-valor">${formatBRL(item.valor_unitario)}</td>
+            <td class="col-valor">${formatBRL(subtotal)}</td>
+            <td class="col-acao"><button class="remove-item-btn" data-index="${i}">×</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+        tbody.querySelectorAll(".remove-item-btn").forEach((btn) => {
+          btn.addEventListener("click", () => removerItem(parseInt(btn.dataset.index, 10)));
+        });
+      }
+
+      const total = ITENS.reduce((acc, item) => acc + item.quantidade * item.valor_unitario, 0);
+      document.getElementById("valor-total").textContent = formatBRL(total);
+    }
+
+    function formatBRL(valor) {
+      return "R$ " + valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // ── Preencher execução existente (se já houver) ──
+    function preencherExecucao(execucao) {
+      ITENS = [];
+
+      if (execucao) {
+        document.getElementById("status-select").value = execucao.status || "concluido";
+        document.getElementById("data-atendimento").value = execucao.data_atendimento || "";
+        document.getElementById("validade-orcamento").value = execucao.validade_orcamento || "";
+        document.getElementById("diagnostico").value = execucao.diagnostico || "";
+        document.getElementById("servicos-realizados").value = execucao.servicos_realizados || "";
+        document.getElementById("recomendacoes").value = execucao.recomendacoes || "";
+        document.getElementById("observacoes-internas").value = execucao.observacoes_internas || "";
+        ITENS = execucao.itens || [];
+      } else {
+        document.getElementById("status-select").value = "concluido";
+        document.getElementById("data-atendimento").value = "";
+        document.getElementById("validade-orcamento").value = "";
+        document.getElementById("diagnostico").value = "";
+        document.getElementById("servicos-realizados").value = "";
+        document.getElementById("recomendacoes").value = "";
+        document.getElementById("observacoes-internas").value = "";
+      }
+
+      renderItens();
+    }
+
+    // ── Salvar execução ──
+    document.getElementById("btn-salvar").addEventListener("click", () => salvarExecucao(false));
+    document.getElementById("btn-pdf").addEventListener("click", () => salvarExecucao(true));
+
+    async function salvarExecucao(gerarPdfDepois) {
+      const payload = {
+        codigo: CODIGO_ATUAL,
+        servico: SERVICO_ATUAL,
+        status: document.getElementById("status-select").value,
+        diagnostico: document.getElementById("diagnostico").value,
+        servicos_realizados: document.getElementById("servicos-realizados").value,
+        recomendacoes: document.getElementById("recomendacoes").value,
+        observacoes_internas: document.getElementById("observacoes-internas").value,
+        data_atendimento: document.getElementById("data-atendimento").value,
+        validade_orcamento: document.getElementById("validade-orcamento").value,
+        itens: ITENS,
+      };
+
+      const btn = gerarPdfDepois ? document.getElementById("btn-pdf") : document.getElementById("btn-salvar");
+      const textoOriginal = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Salvando...";
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/execucao`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Admin-Key": ADMIN_KEY,
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          showFeedback("feedback-exec", "error", `Erro ao salvar: ${err.detail || res.status}`);
+          return;
+        }
+
+        showFeedback("feedback-exec", "success", "// Atendimento salvo com sucesso.");
+
+        if (gerarPdfDepois) {
+          baixarPdf();
+        }
+      } catch {
+        showFeedback("feedback-exec", "error", "Não foi possível conectar à API.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = textoOriginal;
+      }
+    }
+
+    async function baixarPdf() {
+      try {
+        const res = await fetch(
+          `${API_BASE}/admin/relatorio/${encodeURIComponent(CODIGO_ATUAL)}.pdf?servico=${SERVICO_ATUAL}`,
+          { headers: { "X-Admin-Key": ADMIN_KEY } }
+        );
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          showFeedback("feedback-exec", "error", `Erro ao gerar PDF: ${err.detail || res.status}`);
+          return;
+        }
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `relatorio-${CODIGO_ATUAL}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch {
+        showFeedback("feedback-exec", "error", "Não foi possível gerar o PDF.");
+      }
+    }
+
+    function showFeedback(elId, type, msg) {
+      const el = document.getElementById(elId);
+      el.className = type === "error" ? "fb-error" : "fb-success";
+      el.textContent = msg;
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  </script>
+</body>
+</html>

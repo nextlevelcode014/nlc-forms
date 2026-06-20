@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Segurança e Privacidade Digital — NextLevelCode</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0d0d;
+      --surface:   #141414;
+      --surface-hover: #161c2e;
+      --border:    rgba(45, 143, 255, 0.2);
+      --primary:   #2d8fff;
+      --primary-light: #5aaeff;
+      --accent:    #f97316;
+      --accent-light: #fb923c;
+      --text:      #e5e7eb;
+      --muted:     #9ca3af;
+      --muted-darker: #6b7280;
+      --error:     #ef4444;
+      --success:   #22c55e;
+      --radius:    6px;
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 12px;
+      padding: 2.5rem 2.5rem 3rem;
+      box-shadow: 0 0 60px rgba(0, 0, 0, 0.4);
+      position: relative;
+      overflow: hidden; /* fix: garante que ::before respeite o border-radius */
+    }
+
+    .container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      border-radius: 12px 12px 0 0;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      /* Fix: overflow hidden no pai garante que o pseudo-elemento respeite o radius */
+    }
+
+    /* ── Header ── */
+    header {
+      max-width: 680px;
+      margin: 0 auto 2.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .logo-link {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+    }
+
+    .logo-link:hover .logo-text { color: var(--primary); }
+
+    .logo-mark {
+      width: 42px;
+      height: 42px;
+      flex-shrink: 0;
+    }
+
+    .logo-text {
+      font-family: var(--font-mono);
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      transition: color 0.15s;
+    }
+
+    /* ── Page title ── */
+    .page-intro {
+      max-width: 680px;
+      margin: 0 auto 2rem;
+    }
+
+    .page-intro h1 {
+      font-family: var(--font-mono);
+      font-size: 27px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.03em;
+      margin-bottom: 0.35rem;
+    }
+
+    .page-intro h1 .prompt {
+      color: var(--accent);
+      margin-right: 0.4em;
+      font-weight: 400;
+      opacity: 0.8;
+    }
+
+    .page-intro p {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── Token gate ── */
+    .gate-state {
+      max-width: 680px;
+      margin: 3rem auto;
+      text-align: center;
+      padding: 2.5rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    .gate-icon {
+      font-size: 28px;
+      margin-bottom: 1rem;
+      opacity: 0.7;
+    }
+
+    .gate-title {
+      font-family: var(--font-mono);
+      font-size: 19px;
+      font-weight: 600;
+      margin-bottom: 0.6rem;
+      color: var(--text);
+    }
+
+    .gate-text {
+      font-size: 14.5px;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+
+    .gate-hint {
+      font-size: 13px;
+      color: var(--muted-darker);
+      margin-top: 1rem;
+      line-height: 1.6;
+      max-width: 380px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #gate-checking .gate-text {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      opacity: 0.6;
+    }
+
+    /* ── Footer ── */
+    footer {
+      max-width: 680px;
+      margin: 2.5rem auto 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--muted-darker);
+      font-family: var(--font-mono);
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .footer-home {
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .footer-home:hover { color: var(--primary); }
+
+    .footer-links {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .footer-links a {
+      color: var(--muted-darker);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      transition: color 0.15s;
+    }
+
+    .footer-links a:hover { color: var(--text); }
+
+    /* ── Form card ── */
+    form {
+      max-width: 680px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    /* ── Section ── */
+    .section {
+      padding: 1.75rem 1.25rem;
+      background: rgba(255, 255, 255, 0.015);
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+    }
+
+    .section:hover {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 1.25rem;
+    }
+
+    .section-label .num {
+      color: var(--accent);
+      margin-right: 0.35rem;
+    }
+
+    /* ── Field ── */
+    .field {
+      margin-bottom: 1.1rem;
+    }
+
+    .field:last-child { margin-bottom: 0; }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+    }
+
+    label .req {
+      color: var(--accent);
+      margin-left: 2px;
+    }
+
+    label .hint {
+      font-weight: 400;
+      color: var(--muted);
+      font-size: 13px;
+      margin-left: 4px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      padding: 0.65rem 0.75rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      appearance: none;
+    }
+
+    input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 1px;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(45, 143, 255, 0.15);
+    }
+
+    input::placeholder, textarea::placeholder {
+      color: var(--muted);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 90px;
+      line-height: 1.5;
+    }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      padding-right: 2.25rem;
+      cursor: pointer;
+    }
+
+    select option { background: var(--bg); }
+
+    /* ── Radio group ── */
+    .radio-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin-top: 0.4rem;
+    }
+
+    .radio-group input[type="radio"] { display: none; }
+
+    .radio-group label {
+      margin: 0;
+      padding: 0.5rem 1rem;
+      font-size: 14px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-weight: 400;
+      border-radius: 6px;
+      border: 1px solid transparent;
+    }
+
+    .radio-group label:hover {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .radio-group input[type="radio"]:checked + label {
+      color: var(--primary);
+      border-color: rgba(45, 143, 255, 0.25);
+      background: rgba(45, 143, 255, 0.08);
+    }
+
+    /* ── Submit ── */
+    .submit-area {
+      margin-top: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.75rem;
+    }
+
+    .submit-note {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    button[type="submit"] {
+      font-family: var(--font-sans);
+      font-size: 15px;
+      font-weight: 600;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.7rem 2rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button[type="submit"]:hover {
+      background: var(--primary-light);
+      box-shadow: 0 0 20px rgba(45, 143, 255, 0.2);
+    }
+    button[type="submit"]:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+    button[type="submit"]:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── Feedback ── */
+    #feedback {
+      display: none;
+      max-width: 680px;
+      margin: 1.5rem auto 0;
+      padding: 0.75rem 0;
+      font-size: 15px;
+      font-family: var(--font-mono);
+    }
+
+    #feedback.success {
+      display: block;
+      color: var(--success);
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+    }
+
+    #feedback.error {
+      display: block;
+      color: var(--error);
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+    }
+
+    @media (max-width: 520px) {
+      .field-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <main class="container">
+
+  <header>
+    <a href="https://nextlevelcode.pro" class="logo-link" aria-label="Voltar ao site">
+      <img class="logo-mark" src="logo.svg" alt="NextLevelCode" />
+      <span class="logo-text">NextLevelCode</span>
+    </a>
+  </header>
+
+  <!-- ── Token gate ── -->
+  <div id="gate-checking" class="gate-state">
+    <p class="gate-text">Verificando acesso...</p>
+  </div>
+
+  <div id="gate-blocked" class="gate-state" style="display:none">
+    <div class="gate-icon">🔒</div>
+    <h1 class="gate-title">Acesso restrito</h1>
+    <p class="gate-text" id="gate-blocked-reason">Este formulário requer um link de acesso válido.</p>
+    <p class="gate-hint">Se você não recebeu um link, entre em contato pelo WhatsApp ou e-mail para solicitar o acesso.</p>
+  </div>
+
+  <div id="form-content" style="display:none">
+
+  <div class="page-intro">
+    <h1><span class="prompt">$</span> segurança &amp; privacidade</h1>
+    <p>Preencha as informações abaixo para que eu possa entender seu contexto digital antes da assessoria. Campos marcados com <span style="color:var(--accent)">*</span> são obrigatórios.</p>
+  </div>
+
+  <form id="form-triagem-seguranca" novalidate>
+
+    <!-- 01 Contato -->
+    <div class="section">
+      <div class="section-label"><span class="num">01</span> Contato</div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="nome">Nome<span class="req">*</span></label>
+          <input type="text" id="nome" name="nome" placeholder="Seu nome completo" required />
+        </div>
+        <div class="field">
+          <label for="email">E-mail<span class="req">*</span></label>
+          <input type="email" id="email" name="email" placeholder="seu@email.com" required />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="telefone">WhatsApp <span class="hint">(opcional)</span></label>
+        <input type="tel" id="telefone" name="telefone" placeholder="(11) 99999-9999" />
+      </div>
+    </div>
+
+    <!-- 02 Perfil digital -->
+    <div class="section">
+      <div class="section-label"><span class="num">02</span> Perfil digital</div>
+
+      <div class="field">
+        <label for="perfil">Como você usa seus dispositivos no dia a dia?<span class="req">*</span></label>
+        <select id="perfil" name="perfil" required>
+          <option value="" disabled selected>Selecione</option>
+          <option>Uso pessoal</option>
+          <option>Uso profissional</option>
+          <option>Ambos — pessoal e profissional</option>
+          <option>Pequeno negócio / autônomo</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="dispositivos">Quais dispositivos você usa?<span class="req">*</span></label>
+        <input type="text" id="dispositivos" name="dispositivos" placeholder="Ex: notebook Windows, iPhone, tablet Android..." required />
+      </div>
+
+      <div class="field">
+        <label for="servicos">Quais são seus serviços/contas mais importantes?<span class="req">*</span></label>
+        <input type="text" id="servicos" name="servicos" placeholder="Ex: Gmail, banco, Instagram, e-mail do trabalho..." required />
+      </div>
+    </div>
+
+    <!-- 03 Preocupações e histórico -->
+    <div class="section">
+      <div class="section-label"><span class="num">03</span> Preocupações e histórico</div>
+
+      <div class="field">
+        <label for="preocupacao">O que mais te preocupa em relação à sua segurança digital?<span class="req">*</span></label>
+        <textarea id="preocupacao" name="preocupacao" placeholder="Ex: golpes, exposição de dados, invasão de contas, privacidade em redes sociais..." required></textarea>
+      </div>
+
+      <div class="field">
+        <label>Já teve alguma conta invadida ou situação suspeita?<span class="req">*</span></label>
+        <div class="radio-group">
+          <input type="radio" id="incidente-sim" name="incidente" value="Sim" required />
+          <label for="incidente-sim">Sim</label>
+          <input type="radio" id="incidente-nao" name="incidente" value="Não" />
+          <label for="incidente-nao">Não</label>
+          <input type="radio" id="incidente-nao-sei" name="incidente" value="Não sei" />
+          <label for="incidente-nao-sei">Não sei</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="incidente_desc">Se sim, pode descrever brevemente? <span class="hint">(opcional)</span></label>
+        <input type="text" id="incidente_desc" name="incidente_desc" placeholder="O que aconteceu..." />
+      </div>
+    </div>
+
+    <!-- 04 Hábitos atuais -->
+    <div class="section">
+      <div class="section-label"><span class="num">04</span> Hábitos atuais</div>
+
+      <div class="field">
+        <label>Você já usa autenticação em dois fatores (2FA)?<span class="req">*</span></label>
+        <div class="radio-group">
+          <input type="radio" id="2fa-sim" name="usa_2fa" value="Sim, em algumas contas" required />
+          <label for="2fa-sim">Sim, em algumas</label>
+          <input type="radio" id="2fa-nao" name="usa_2fa" value="Não uso" />
+          <label for="2fa-nao">Não uso</label>
+          <input type="radio" id="2fa-nao-sei" name="usa_2fa" value="Não sei o que é" />
+          <label for="2fa-nao-sei">Não sei o que é</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Você usa gerenciador de senhas?<span class="req">*</span></label>
+        <div class="radio-group">
+          <input type="radio" id="ger-sim" name="usa_gerenciador" value="Sim" required />
+          <label for="ger-sim">Sim</label>
+          <input type="radio" id="ger-nao" name="usa_gerenciador" value="Não" />
+          <label for="ger-nao">Não</label>
+          <input type="radio" id="ger-nao-sei" name="usa_gerenciador" value="Não sei o que é" />
+          <label for="ger-nao-sei">Não sei o que é</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Você faz backup regularmente?<span class="req">*</span></label>
+        <div class="radio-group">
+          <input type="radio" id="backup-sim" name="tem_backup" value="Sim" required />
+          <label for="backup-sim">Sim</label>
+          <input type="radio" id="backup-nao" name="tem_backup" value="Não" />
+          <label for="backup-nao">Não</label>
+          <input type="radio" id="backup-as-vezes" name="tem_backup" value="Às vezes" />
+          <label for="backup-as-vezes">Às vezes</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 05 Atendimento -->
+    <div class="section">
+      <div class="section-label"><span class="num">05</span> Atendimento</div>
+
+      <div class="field">
+        <label>Preferência de modalidade<span class="req">*</span></label>
+        <div class="radio-group">
+          <input type="radio" id="mod-remoto" name="modalidade" value="Remoto" required />
+          <label for="mod-remoto">Remoto</label>
+          <input type="radio" id="mod-presencial" name="modalidade" value="Presencial" />
+          <label for="mod-presencial">Presencial</label>
+          <input type="radio" id="mod-qualquer" name="modalidade" value="Qualquer um" />
+          <label for="mod-qualquer">Qualquer um</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="observacoes">Observações adicionais <span class="hint">(opcional)</span></label>
+        <textarea id="observacoes" name="observacoes" placeholder="Algo mais que queira informar..." style="min-height:70px"></textarea>
+      </div>
+    </div>
+
+    <div class="submit-area">
+      <p class="submit-note">Após o envio, entrarei em contato pelo e-mail ou WhatsApp informado.</p>
+      <button type="submit" id="btn-submit">Enviar triagem →</button>
+    </div>
+  </form>
+
+  <div id="feedback"></div>
+
+  </div> <!-- /#form-content -->
+
+  <footer>
+    <a href="https://nextlevelcode.pro" class="footer-home">nextlevelcode.pro</a>
+    <div class="footer-links">
+      <a href="https://github.com/wavly" aria-label="GitHub">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.34-3.369-1.34-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+      </a>
+      <a href="mailto:work@nextlevelcode.pro" aria-label="E-mail">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      </a>
+    </div>
+    <span>© NextLevelCode</span>
+  </footer>
+
+  </main>
+
+  <script>
+    // ── Configuração ──────────────────────────────────────────
+    // Troque pela URL do Tailscale Funnel quando for para produção
+    const API_BASE = "http://localhost:8000";
+    const SERVICO = "seguranca";
+    const API_URL = `${API_BASE}/triagem/${SERVICO}`;
+    // ─────────────────────────────────────────────────────────
+
+    const gateChecking = document.getElementById("gate-checking");
+    const gateBlocked  = document.getElementById("gate-blocked");
+    const gateReason   = document.getElementById("gate-blocked-reason");
+    const formContent  = document.getElementById("form-content");
+
+    let TOKEN = null;
+
+    function showBlocked(motivo) {
+      gateChecking.style.display = "none";
+      gateBlocked.style.display = "block";
+      formContent.style.display = "none";
+      if (motivo) gateReason.textContent = motivo;
+    }
+
+    function showForm() {
+      gateChecking.style.display = "none";
+      gateBlocked.style.display = "none";
+      formContent.style.display = "block";
+    }
+
+    async function checarAcesso() {
+      const params = new URLSearchParams(window.location.search);
+      TOKEN = params.get("token");
+
+      if (!TOKEN) {
+        showBlocked("Nenhum link de acesso foi informado.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/token/${encodeURIComponent(TOKEN)}/validar?servico=${SERVICO}`);
+        const data = await res.json();
+
+        if (!res.ok || !data.valido) {
+          showBlocked(data.motivo || "Este link não é válido.");
+          return;
+        }
+
+        showForm();
+      } catch {
+        showBlocked("Não foi possível verificar o acesso. Tente novamente em instantes.");
+      }
+    }
+
+    checarAcesso();
+
+    const form = document.getElementById("form-triagem-seguranca");
+    const btn  = document.getElementById("btn-submit");
+    const fb   = document.getElementById("feedback");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const required = form.querySelectorAll("[required]");
+      let valid = true;
+
+      required.forEach(el => {
+        if (el.type === "radio") {
+          const group = form.querySelectorAll(`[name="${el.name}"]`);
+          const checked = [...group].some(r => r.checked);
+          if (!checked) valid = false;
+        } else if (!el.value.trim()) {
+          el.style.borderColor = "var(--error)";
+          el.addEventListener("input", () => el.style.borderColor = "", { once: true });
+          valid = false;
+        }
+      });
+
+      if (!valid) {
+        showFeedback("error", "Preencha todos os campos obrigatórios antes de enviar.");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Enviando...";
+      fb.className = "";
+      fb.style.display = "none";
+
+      const data = {};
+      const formData = new FormData(form);
+      formData.forEach((v, k) => { data[k] = v; });
+
+      try {
+        const res = await fetch(`${API_URL}?token=${encodeURIComponent(TOKEN)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+
+        if (res.ok) {
+          const result = await res.json();
+          form.reset();
+          formContent.innerHTML = `
+            <div class="gate-state" style="border-color: var(--success); background: rgba(34,197,94,0.04);">
+              <div class="gate-icon">✓</div>
+              <h1 class="gate-title" style="color: var(--success);">Triagem recebida</h1>
+              <p class="gate-text">Entrarei em contato pelo e-mail ou WhatsApp informado em breve.</p>
+              <p class="gate-hint">Guarde este código para consulta futura:</p>
+              <p style="font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--accent); margin-top: 0.5rem; letter-spacing: 0.05em;">${result.codigo}</p>
+            </div>
+          `;
+        } else {
+          const err = await res.json().catch(() => ({}));
+          showFeedback("error", `Erro ao enviar: ${err.detail || res.status}`);
+        }
+      } catch {
+        showFeedback("error", "Não foi possível conectar ao servidor. Tente novamente.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Enviar triagem →";
+      }
+    });
+
+    function showFeedback(type, msg) {
+      fb.className = type;
+      fb.textContent = msg;
+      fb.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  </script>
+</body>
+</html>
