@@ -18,7 +18,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             path = "/"
 
         if path == "/":
-            path = "/index.html"
+            path = "/public/index.html"
 
         full = os.path.normpath(os.path.join(BASE, path.lstrip("/")))
         if not full.startswith(os.path.normpath(BASE)):
