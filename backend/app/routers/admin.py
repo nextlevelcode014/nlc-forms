@@ -1,16 +1,17 @@
 import json
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, Header, Query
+from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from fastapi.responses import StreamingResponse
 
 from app.config import SERVICOS_VALIDOS, TOKEN_TTL_HOURS
 from app.database import get_db, TABELAS_POR_SERVICO
 from app.auth import checar_admin, gerar_token
 from app.models import GerarTokenRequest, SalvarExecucaoRequest
+from app.ratelimit import check_rate_limit
 from pdf_relatorio import montar_pdf_relatorio
 
-router = APIRouter(tags=["admin"])
+router = APIRouter(tags=["admin"], dependencies=[Depends(check_rate_limit)])
 
 
 @router.post("/admin/gerar-token")

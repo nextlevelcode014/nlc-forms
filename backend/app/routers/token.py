@@ -1,10 +1,11 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
 from app.database import get_db
+from app.ratelimit import check_rate_limit
 
-router = APIRouter(tags=["token"])
+router = APIRouter(tags=["token"], dependencies=[Depends(check_rate_limit)])
 
 
 @router.get("/token/{token}/validar")
