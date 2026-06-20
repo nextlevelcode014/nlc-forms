@@ -20,7 +20,7 @@ SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER)
 NOTIFY_TO = os.getenv("NOTIFY_TO", "")
-PAINEL_BASE_URL = os.getenv("PAINEL_BASE_URL", "http://localhost:9080")
+PAINEL_BASE_URL = os.getenv("PAINEL_BASE_URL", "https://nextlevelcode.tail181a66.ts.net:9090")
 
 RATE_LIMIT = int(os.getenv("RATE_LIMIT", "10"))
 RATE_LIMIT_WINDOW = 60

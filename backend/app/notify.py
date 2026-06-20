@@ -13,7 +13,7 @@ def enviar_notificacao_nova_triagem(servico: str, codigo: str, nome: str, email_
         print(f"[notificação] SMTP não configurado. Triagem {codigo} recebida sem envio de e-mail.")
         return
 
-    link_painel = f"{PAINEL_BASE_URL}/admin/painel-atendimento.html?codigo={codigo}&servico={servico}"
+    link_painel = f"{PAINEL_BASE_URL}/painel-atendimento.html?codigo={codigo}&servico={servico}"
 
     servico_label = {
         "suporte": "Suporte Técnico",
