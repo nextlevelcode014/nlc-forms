@@ -129,14 +129,29 @@ Vai gerar uma URL pública tipo `https://<nome-do-pi>.tail12345.ts.net`.
 
 ### 5. Deploy dos formulários públicos
 
-Faça deploy da pasta `frontend/public/` na Vercel/Netlify.
+Faça deploy da pasta `frontend/public/` na Vercel.
 
-Antes, troque a `API_BASE` nos 3 arquivos de `public/`:
+**Via CLI:**
+
+```bash
+cd frontend/public
+npx vercel --prod
+```
+
+**Via GitHub (recomendado):**
+1. Push o repositório no GitHub
+2. Acesse [vercel.com/new](https://vercel.com/new)
+3. Importe o repositório, ajuste **Root Directory** para `frontend/public`
+4. Deploy
+
+Antes do deploy, troque a `API_BASE` nos 3 arquivos de `public/`:
 ```javascript
 const API_BASE = "https://<seu-dominio-api>";
 ```
 
 Os arquivos em `admin/` (`admin-gerar-token.html`, `painel-atendimento.html`) ficam apenas no seu computador/Pi — servidos localmente ou por Tailscale Funnel com proteção.
+
+> O `index.html` lista os 3 formulários — acessível pela raiz do domínio.
 
 ## Backup e restauração
 
