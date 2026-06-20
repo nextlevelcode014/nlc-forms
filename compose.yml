@@ -5,30 +5,17 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # Separe múltiplos domínios por vírgula
-      # Ex: https://nextlevelcode.pro,https://www.nextlevelcode.pro
-      ALLOWED_ORIGINS: "http://localhost:3000,http://127.0.0.1:5500,http://localhost:5500,http://localhost:9080,http://127.0.0.1:9080,http://localhost:8080,http://127.0.0.1:8080"
-      DB_PATH: "/data/forms.db"
-
-      # Chave usada para gerar tokens e acessar o painel de atendimento.
-      # TROQUE este valor — qualquer um com essa chave acessa dados de clientes.
-      ADMIN_KEY: "teste"
-
-      # Validade padrão dos links de formulário, em horas
-      TOKEN_TTL_HOURS: "48"
-
-      # ── SMTP — notificação por e-mail quando chega uma nova triagem ──
-      # Deixe SMTP_HOST vazio para desativar notificações (sem quebrar nada).
-      SMTP_HOST: ""
-      SMTP_PORT: "587"
-      SMTP_USER: ""
-      SMTP_PASS: ""
-      SMTP_FROM: ""
-      NOTIFY_TO: ""
-
-      # URL base de onde os formulários/painel estão servidos (frontend)
-      # Usada para montar o link que vai no e-mail de notificação.
-      PAINEL_BASE_URL: "http://localhost:9080"
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      DB_PATH: ${DB_PATH}
+      ADMIN_KEY: ${ADMIN_KEY}
+      TOKEN_TTL_HOURS: ${TOKEN_TTL_HOURS}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      NOTIFY_TO: ${NOTIFY_TO}
+      PAINEL_BASE_URL: ${PAINEL_BASE_URL}
     volumes:
       - forms_data:/data
     restart: unless-stopped
