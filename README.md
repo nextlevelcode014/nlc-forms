@@ -19,12 +19,15 @@ nlc-forms/
 │   ├── pyproject.toml
 │   └── Dockerfile
 ├── frontend/
-│   ├── triagem-suporte.html         # Formulário do cliente — Suporte Técnico
-│   ├── triagem-seguranca.html       # Formulário do cliente — Segurança Digital
-│   ├── triagem-desenvolvimento.html # Formulário do cliente — Dev & Automação
-│   ├── admin-gerar-token.html       # Você gera o link a enviar no WhatsApp
-│   ├── painel-atendimento.html      # Você preenche o atendimento e gera o PDF
-│   └── logo.png                     # Logo usada nos formulários
+│   ├── public/                      # Formulários públicos (deploy na web)
+│   │   ├── triagem-suporte.html
+│   │   ├── triagem-seguranca.html
+│   │   ├── triagem-desenvolvimento.html
+│   │   └── logo.png
+│   └── admin/                       # Painel interno (só local)
+│       ├── admin-gerar-token.html
+│       ├── painel-atendimento.html
+│       └── logo.png
 ├── compose.yml               # Docker Compose com env vars
 ├── .env.example              # Template de configuração (commitado)
 ├── .env                      # Configuração real (ignorado pelo git)
@@ -56,16 +59,19 @@ curl http://localhost:8000/health
 # → {"status":"ok"}
 ```
 
-Rode um servidor estático dentro da pasta `frontend/`:
+Sirva a `frontend/` com um servidor estático:
 
 ```bash
-cd frontend
-python3 -m http.server 9080
+# Na raiz do projeto
+python3 -m http.server 9080 -d frontend
 ```
 
 Acesse:
-- `http://localhost:9080/admin-gerar-token.html` — gerar link de triagem
-- `http://localhost:9080/painel-atendimento.html` — atender e gerar PDF
+- **Público** → `http://localhost:9080/public/triagem-suporte.html`
+- **Admin** → `http://localhost:9080/admin/painel-atendimento.html`
+
+Para produção, faça deploy só da pasta `public/` na Vercel/Netlify.
+Os arquivos `admin/` ficam apenas no seu computador/Pi.
 
 ## Configuração
 
@@ -121,20 +127,16 @@ tailscale funnel 8000
 
 Vai gerar uma URL pública tipo `https://<nome-do-pi>.tail12345.ts.net`.
 
-### 5. Atualizar API_BASE nos arquivos frontend
+### 5. Deploy dos formulários públicos
 
-Em cada um dos 5 arquivos HTML, trocar:
+Faça deploy da pasta `frontend/public/` na Vercel/Netlify.
+
+Antes, troque a `API_BASE` nos 3 arquivos de `public/`:
 ```javascript
-const API_BASE = "http://localhost:8000";
-```
-para:
-```javascript
-const API_BASE = "https://<nome-do-pi>.tail12345.ts.net";
+const API_BASE = "https://<seu-dominio-api>";
 ```
 
-Depois fazer deploy dos HTMLs de triagem na Vercel (públicos).
-
-**Importante:** `admin-gerar-token.html` e `painel-atendimento.html` são de uso exclusivamente seu — não publique num caminho óbvio/indexado. A proteção real é a `ADMIN_KEY`, mas evite expor a URL desnecessariamente.
+Os arquivos em `admin/` (`admin-gerar-token.html`, `painel-atendimento.html`) ficam apenas no seu computador/Pi — servidos localmente ou por Tailscale Funnel com proteção.
 
 ## Backup e restauração
 
