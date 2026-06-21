@@ -21,7 +21,7 @@ set -euo pipefail
 
 # ── Configuração ─────────────────────────────────────────────
 CONTAINER_NAME="nlc-forms-api"
-BACKUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/backups"
+BACKUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/backups"
 RETENCAO=7
 
 # ── Destino remoto via rsync/SSH (opcional) ──────────────────

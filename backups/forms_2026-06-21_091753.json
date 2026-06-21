@@ -1,0 +1,378 @@
+{
+  "tokens": [
+    {
+      "token": "wVKR-CqWQWdP7YlOt-ueucUGiK-2H-DV",
+      "servico": "suporte",
+      "criado_em": "2026-06-20T17:38:46.600946",
+      "expira_em": "2026-06-22T17:38:46.600946",
+      "usado": 1,
+      "usado_em": "2026-06-20T17:41:13.967561",
+      "nota": ""
+    },
+    {
+      "token": "tsEyOwmsCoYgwRGvdqjE_2suy6xHfQRq",
+      "servico": "suporte",
+      "criado_em": "2026-06-21T11:13:33.210542",
+      "expira_em": "2026-06-23T11:13:33.210542",
+      "usado": 0,
+      "usado_em": null,
+      "nota": ""
+    }
+  ],
+  "triagem_suporte": [
+    {
+      "id": 1,
+      "codigo": "NLC-NK9B-HSI4",
+      "token": "wVKR-CqWQWdP7YlOt-ueucUGiK-2H-DV",
+      "criado_em": "2026-06-20T17:41:13.971702",
+      "nome": "Marcelo",
+      "email": "teste@test.com",
+      "telefone": "0393399393",
+      "problema": "Não liga.",
+      "quando": "Hoje",
+      "causa": "Molhei",
+      "tentou": "coloquei no fugão",
+      "marca": "lenovo",
+      "modelo": "ideapad",
+      "sistema": "Windows 11",
+      "idade": "Mais de 5 anos",
+      "armazenamento": "SSD",
+      "ram": "8 GB",
+      "tem_backup": "Não sei",
+      "programas": "chrome",
+      "modalidade": "Presencial",
+      "observacoes": "Ele é ruim"
+    },
+    {
+      "id": 2,
+      "codigo": "NLC-AA11-BB22",
+      "token": null,
+      "criado_em": "2026-06-20T10:00:00",
+      "nome": "Joao Silva",
+      "email": "joao@email.com",
+      "telefone": "11999999999",
+      "problema": "PC nao liga",
+      "quando": "Hoje de manha",
+      "causa": "Acho que e a fonte",
+      "tentou": "Sim, testei outro cabo",
+      "marca": "Dell",
+      "modelo": "Inspiron 15",
+      "sistema": "Windows 11",
+      "idade": "2 anos",
+      "armazenamento": "256GB SSD",
+      "ram": "8GB",
+      "tem_backup": "Sim",
+      "programas": "Office, Chrome, Photoshop",
+      "modalidade": "Remoto",
+      "observacoes": "Cliente ja tentou trocar a fonte"
+    },
+    {
+      "id": 3,
+      "codigo": "NLC-AA33-CC44",
+      "token": null,
+      "criado_em": "2026-06-18T14:30:00",
+      "nome": "Ana Costa",
+      "email": "ana@email.com",
+      "telefone": "11988888888",
+      "problema": "Tela azul ao iniciar",
+      "quando": "Ontem",
+      "causa": "Pode ser driver",
+      "tentou": "Sim, modo seguro",
+      "marca": "Lenovo",
+      "modelo": "ThinkPad X1",
+      "sistema": "Windows 10",
+      "idade": "4 anos",
+      "armazenamento": "512GB SSD",
+      "ram": "16GB",
+      "tem_backup": "Nao",
+      "programas": "VS Code, Docker",
+      "modalidade": "Remoto",
+      "observacoes": ""
+    }
+  ],
+  "triagem_seguranca": [
+    {
+      "id": 1,
+      "codigo": "NLC-BB22-CC33",
+      "token": null,
+      "criado_em": "2026-06-19T09:00:00",
+      "nome": "Maria Santos",
+      "email": "maria@email.com",
+      "telefone": "11977777777",
+      "perfil": "Pessoal",
+      "dispositivos": "PC + Celular + Tablet",
+      "servicos": "Email, Redes sociais, Banco",
+      "preocupacao": "Senhas vazadas",
+      "incidente": "Sim",
+      "incidente_desc": "Recebi um e-mail suspeito pedindo para clicar em um link",
+      "usa_2fa": "Nao",
+      "usa_gerenciador": "Nao",
+      "tem_backup": "Sim",
+      "modalidade": "Presencial",
+      "observacoes": "Cliente preocupada com privacidade"
+    }
+  ],
+  "triagem_desenvolvimento": [
+    {
+      "id": 1,
+      "codigo": "NLC-CC33-DD44",
+      "token": null,
+      "criado_em": "2026-06-17T16:45:00",
+      "nome": "Carlos Oliveira",
+      "email": "carlos@email.com",
+      "telefone": "11966666666",
+      "tipo_cliente": "Pessoa Fisica",
+      "tipo_projeto": "Landing page",
+      "descricao": "Preciso de um site profissional para divulgar meu trabalho como fotografo",
+      "tem_referencia": "Sim",
+      "referencia_url": "carlosfoto.com",
+      "prazo": "30 dias",
+      "orcamento": "Ate R$ 1.500",
+      "ja_tem_algo": "Nao",
+      "ja_tem_desc": "",
+      "stack_preferida": "React, Tailwind",
+      "observacoes": "Tenho as imagens em alta resolucao"
+    }
+  ],
+  "catalogo_itens": [
+    {
+      "id": 1,
+      "servico": "suporte",
+      "nome": "Diagnóstico de hardware e software",
+      "valor": 50.0,
+      "ativo": 1
+    },
+    {
+      "id": 2,
+      "servico": "suporte",
+      "nome": "Limpeza e otimização do sistema",
+      "valor": 70.0,
+      "ativo": 1
+    },
+    {
+      "id": 3,
+      "servico": "suporte",
+      "nome": "Remoção de vírus e malware",
+      "valor": 80.0,
+      "ativo": 1
+    },
+    {
+      "id": 4,
+      "servico": "suporte",
+      "nome": "Formatação e reinstalação do sistema",
+      "valor": 120.0,
+      "ativo": 1
+    },
+    {
+      "id": 5,
+      "servico": "suporte",
+      "nome": "Instalação de drivers e atualizações",
+      "valor": 40.0,
+      "ativo": 1
+    },
+    {
+      "id": 6,
+      "servico": "suporte",
+      "nome": "Limpeza interna (poeira e ventilação)",
+      "valor": 60.0,
+      "ativo": 1
+    },
+    {
+      "id": 7,
+      "servico": "suporte",
+      "nome": "Troca de pasta térmica",
+      "valor": 70.0,
+      "ativo": 1
+    },
+    {
+      "id": 8,
+      "servico": "suporte",
+      "nome": "Upgrade de SSD (mão de obra)",
+      "valor": 80.0,
+      "ativo": 1
+    },
+    {
+      "id": 9,
+      "servico": "suporte",
+      "nome": "Upgrade de memória RAM (mão de obra)",
+      "valor": 50.0,
+      "ativo": 1
+    },
+    {
+      "id": 10,
+      "servico": "suporte",
+      "nome": "Configuração de impressora/periféricos",
+      "valor": 40.0,
+      "ativo": 1
+    },
+    {
+      "id": 11,
+      "servico": "suporte",
+      "nome": "Configuração de rede e Wi-Fi",
+      "valor": 40.0,
+      "ativo": 1
+    },
+    {
+      "id": 12,
+      "servico": "suporte",
+      "nome": "Backup e organização de arquivos",
+      "valor": 60.0,
+      "ativo": 1
+    },
+    {
+      "id": 13,
+      "servico": "suporte",
+      "nome": "Visita técnica (presencial)",
+      "valor": 50.0,
+      "ativo": 1
+    },
+    {
+      "id": 14,
+      "servico": "seguranca",
+      "nome": "Diagnóstico de segurança digital",
+      "valor": 80.0,
+      "ativo": 1
+    },
+    {
+      "id": 15,
+      "servico": "seguranca",
+      "nome": "Configuração de gerenciador de senhas",
+      "valor": 60.0,
+      "ativo": 1
+    },
+    {
+      "id": 16,
+      "servico": "seguranca",
+      "nome": "Configuração de 2FA (por conta)",
+      "valor": 20.0,
+      "ativo": 1
+    },
+    {
+      "id": 17,
+      "servico": "seguranca",
+      "nome": "Hardening de sistema operacional",
+      "valor": 90.0,
+      "ativo": 1
+    },
+    {
+      "id": 18,
+      "servico": "seguranca",
+      "nome": "Configuração de VPN",
+      "valor": 50.0,
+      "ativo": 1
+    },
+    {
+      "id": 19,
+      "servico": "seguranca",
+      "nome": "Configuração de backup automatizado",
+      "valor": 70.0,
+      "ativo": 1
+    },
+    {
+      "id": 20,
+      "servico": "seguranca",
+      "nome": "Treinamento de boas práticas (sessão)",
+      "valor": 100.0,
+      "ativo": 1
+    },
+    {
+      "id": 21,
+      "servico": "seguranca",
+      "nome": "Assessoria mensal — pacote básico",
+      "valor": 150.0,
+      "ativo": 1
+    },
+    {
+      "id": 22,
+      "servico": "seguranca",
+      "nome": "Assessoria mensal — pacote avançado",
+      "valor": 280.0,
+      "ativo": 1
+    },
+    {
+      "id": 23,
+      "servico": "desenvolvimento",
+      "nome": "Automação simples (script único)",
+      "valor": 250.0,
+      "ativo": 1
+    },
+    {
+      "id": 24,
+      "servico": "desenvolvimento",
+      "nome": "Automação com integração de API",
+      "valor": 500.0,
+      "ativo": 1
+    },
+    {
+      "id": 25,
+      "servico": "desenvolvimento",
+      "nome": "Landing page simples",
+      "valor": 600.0,
+      "ativo": 1
+    },
+    {
+      "id": 26,
+      "servico": "desenvolvimento",
+      "nome": "Aplicação web básica (CRUD)",
+      "valor": 1500.0,
+      "ativo": 1
+    },
+    {
+      "id": 27,
+      "servico": "desenvolvimento",
+      "nome": "Dashboard/painel administrativo",
+      "valor": 1800.0,
+      "ativo": 1
+    },
+    {
+      "id": 28,
+      "servico": "desenvolvimento",
+      "nome": "API REST simples",
+      "valor": 800.0,
+      "ativo": 1
+    },
+    {
+      "id": 29,
+      "servico": "desenvolvimento",
+      "nome": "Hora técnica avulsa",
+      "valor": 80.0,
+      "ativo": 1
+    }
+  ],
+  "execucao": [
+    {
+      "id": 1,
+      "codigo": "NLC-NK9B-HSI4",
+      "servico": "suporte",
+      "criado_em": "2026-06-20T17:48:47.443999",
+      "atualizado_em": "2026-06-20T17:48:47.443999",
+      "status": "concluido",
+      "diagnostico": "Placa queimada",
+      "servicos_realizados": "troca da placa",
+      "recomendacoes": "tome cuidado",
+      "observacoes_internas": "deu trabalho",
+      "itens_json": "[{\"nome\": \"Visita técnica (presencial)\", \"quantidade\": 1.0, \"valor_unitario\": 50.0}, {\"nome\": \"Backup e organização de arquivos\", \"quantidade\": 1.0, \"valor_unitario\": 60.0}, {\"nome\": \"Formatação e reinstalação do sistema\", \"quantidade\": 1.0, \"valor_unitario\": 120.0}]",
+      "valor_total": 230.0,
+      "data_atendimento": "",
+      "validade_orcamento": "Uma semana",
+      "pdf_gerado_em": "2026-06-20T17:48:47.480065"
+    },
+    {
+      "id": 2,
+      "codigo": "NLC-AA11-BB22",
+      "servico": "suporte",
+      "criado_em": "2026-06-20T11:00:00",
+      "atualizado_em": null,
+      "status": "concluido",
+      "diagnostico": "Fonte queimada - tensao de 5V fora do esperado",
+      "servicos_realizados": "Troca da fonte ATX 500W, teste de estresse por 30 minutos",
+      "recomendacoes": "Manter o nobreak e evitar ligar o PC em tomada sem aterramento",
+      "observacoes_internas": null,
+      "itens_json": "[{\"nome\": \"Fonte ATX 500W 80 Plus Bronze\", \"quantidade\": 1, \"valor_unitario\": 220.0}, {\"nome\": \"Mao de obra\", \"quantidade\": 1, \"valor_unitario\": 80.0}]",
+      "valor_total": 300.0,
+      "data_atendimento": "20/06/2026",
+      "validade_orcamento": "27/06/2026",
+      "pdf_gerado_em": null
+    }
+  ]
+}

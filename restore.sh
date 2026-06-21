@@ -15,7 +15,7 @@
 set -euo pipefail
 
 CONTAINER_NAME="nlc-forms-api"
-BACKUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/backups"
+BACKUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/backups"
 
 if [ "${1:-}" == "--list" ] || [ -z "${1:-}" ]; then
   echo "Backups disponíveis em ${BACKUP_DIR}:"
