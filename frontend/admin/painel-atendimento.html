@@ -570,6 +570,7 @@
         <div class="actions-bar">
           <button class="btn-ghost" id="btn-salvar">Salvar atendimento</button>
           <button class="btn-accent" id="btn-pdf">Gerar PDF do cliente →</button>
+          <button class="btn-primary" id="btn-enviar-pdf">Enviar PDF para o cliente ✉</button>
         </div>
 
       </div>
@@ -884,6 +885,7 @@
     // ── Salvar execução ──
     document.getElementById("btn-salvar").addEventListener("click", () => salvarExecucao(false));
     document.getElementById("btn-pdf").addEventListener("click", () => salvarExecucao(true));
+    document.getElementById("btn-enviar-pdf").addEventListener("click", enviarPdfCliente);
 
     async function salvarExecucao(gerarPdfDepois) {
       const payload = {
@@ -930,6 +932,39 @@
       } finally {
         btn.disabled = false;
         btn.textContent = textoOriginal;
+      }
+    }
+
+    async function enviarPdfCliente() {
+      if (!CODIGO_ATUAL) {
+        showFeedback("feedback-exec", "error", "Busque uma triagem primeiro.");
+        return;
+      }
+
+      const btn = document.getElementById("btn-enviar-pdf");
+      const texto = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Enviando...";
+
+      try {
+        const res = await fetch(
+          `${API_BASE}/admin/enviar-pdf?codigo=${encodeURIComponent(CODIGO_ATUAL)}&servico=${SERVICO_ATUAL}`,
+          { method: "POST", headers: { "X-Admin-Key": ADMIN_KEY } }
+        );
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          showFeedback("feedback-exec", "error", `Erro ao enviar: ${err.detail || res.status}`);
+          return;
+        }
+
+        const data = await res.json();
+        showFeedback("feedback-exec", "success", data.mensagem);
+      } catch {
+        showFeedback("feedback-exec", "error", "Não foi possível conectar à API.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = texto;
       }
     }
 

@@ -1,4 +1,5 @@
 import json
+import io
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Header, Query
@@ -10,6 +11,7 @@ from app.auth import checar_admin, gerar_token
 from app.models import GerarTokenRequest, SalvarExecucaoRequest
 from app.ratelimit import check_rate_limit
 from pdf_relatorio import montar_pdf_relatorio
+from app.notify import enviar_pdf_cliente
 
 router = APIRouter(tags=["admin"], dependencies=[Depends(check_rate_limit)])
 
@@ -217,5 +219,45 @@ def gerar_relatorio_pdf(
                 "Content-Disposition": f'attachment; filename="relatorio-{codigo}.pdf"'
             },
         )
+    finally:
+        conn.close()
+
+
+@router.post("/admin/enviar-pdf")
+def enviar_pdf_cliente_endpoint(
+    codigo: str = Query(...),
+    servico: str = Query(...),
+    x_admin_key: str | None = Header(default=None),
+):
+    checar_admin(x_admin_key)
+
+    if servico not in TABELAS_POR_SERVICO:
+        raise HTTPException(status_code=400, detail="Serviço inválido.")
+
+    conn = get_db()
+    try:
+        tabela = TABELAS_POR_SERVICO[servico]
+        triagem = conn.execute(
+            f"SELECT * FROM {tabela} WHERE codigo = ?", (codigo,)
+        ).fetchone()
+        if triagem is None:
+            raise HTTPException(status_code=404, detail="Triagem não encontrada.")
+
+        execucao = conn.execute(
+            "SELECT * FROM execucao WHERE codigo = ?", (codigo,)
+        ).fetchone()
+        if execucao is None:
+            raise HTTPException(status_code=400, detail="Nenhuma execução registrada.")
+
+        triagem_dict = dict(triagem)
+        execucao_dict = dict(execucao)
+        execucao_dict["itens"] = json.loads(execucao_dict["itens_json"] or "[]")
+
+        pdf_buffer = montar_pdf_relatorio(servico, triagem_dict, execucao_dict)
+        pdf_bytes = pdf_buffer.getvalue()
+
+        enviar_pdf_cliente(servico, codigo, triagem_dict["nome"], triagem_dict["email"], pdf_bytes)
+
+        return {"ok": True, "mensagem": f"PDF enviado para {triagem_dict['email']}"}
     finally:
         conn.close()

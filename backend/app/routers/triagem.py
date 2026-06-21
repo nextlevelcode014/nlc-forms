@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.models import TriagemSuporte, TriagemSeguranca, TriagemDesenvolvimento
 from app.auth import validar_e_consumir_token, gerar_codigo_consulta
 from app.database import get_db
-from app.notify import enviar_notificacao_nova_triagem
+from app.notify import enviar_notificacao_nova_triagem, notificar_cliente_triagem
 from app.ratelimit import check_rate_limit
 
 router = APIRouter(tags=["triagem"], dependencies=[Depends(check_rate_limit)])
@@ -34,6 +34,7 @@ def criar_triagem_suporte(data: TriagemSuporte, token: str = Query(...)):
         ))
         conn.commit()
         enviar_notificacao_nova_triagem("suporte", codigo, data.nome, data.email)
+        notificar_cliente_triagem("suporte", codigo, data.nome, data.email)
         return {"ok": True, "mensagem": "Triagem recebida com sucesso.", "codigo": codigo}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -64,6 +65,7 @@ def criar_triagem_seguranca(data: TriagemSeguranca, token: str = Query(...)):
         ))
         conn.commit()
         enviar_notificacao_nova_triagem("seguranca", codigo, data.nome, data.email)
+        notificar_cliente_triagem("seguranca", codigo, data.nome, data.email)
         return {"ok": True, "mensagem": "Triagem recebida com sucesso.", "codigo": codigo}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -95,6 +97,7 @@ def criar_triagem_desenvolvimento(data: TriagemDesenvolvimento, token: str = Que
         ))
         conn.commit()
         enviar_notificacao_nova_triagem("desenvolvimento", codigo, data.nome, data.email)
+        notificar_cliente_triagem("desenvolvimento", codigo, data.nome, data.email)
         return {"ok": True, "mensagem": "Triagem recebida com sucesso.", "codigo": codigo}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
