@@ -171,6 +171,71 @@ def salvar_execucao(
         conn.close()
 
 
+@router.get("/admin/triagens")
+def listar_triagens(
+    servico: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    search: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=20, ge=1, le=100),
+    x_admin_key: str | None = Header(default=None),
+):
+    checar_admin(x_admin_key)
+
+    servicos = [servico] if servico else list(TABELAS_POR_SERVICO)
+
+    unions = []
+    for s in servicos:
+        tabela = TABELAS_POR_SERVICO[s]
+        unions.append(
+            f"SELECT codigo, nome, email, telefone, criado_em, '{s}' as servico FROM {tabela}"
+        )
+    subconsulta = " UNION ALL ".join(unions)
+
+    conn = get_db()
+    try:
+        where_clauses = []
+        params: list = []
+
+        if search:
+            where_clauses.append("(codigo LIKE ? OR nome LIKE ? OR email LIKE ?)")
+            like = f"%{search}%"
+            params.extend([like, like, like])
+
+        if status:
+            where_clauses.append("e.status = ?")
+            params.append(status)
+
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+        count_sql = f"""
+            SELECT COUNT(*) as total FROM ({subconsulta}) t
+            LEFT JOIN execucao e ON e.codigo = t.codigo
+            {where_sql}
+        """
+        total = conn.execute(count_sql, params).fetchone()["total"]
+
+        offset = (page - 1) * per_page
+        data_sql = f"""
+            SELECT t.*, e.status, e.valor_total, e.data_atendimento
+            FROM ({subconsulta}) t
+            LEFT JOIN execucao e ON e.codigo = t.codigo
+            {where_sql}
+            ORDER BY t.criado_em DESC
+            LIMIT ? OFFSET ?
+        """
+        rows = conn.execute(data_sql, params + [per_page, offset]).fetchall()
+
+        return {
+            "triagens": [dict(r) for r in rows],
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+        }
+    finally:
+        conn.close()
+
+
 @router.get("/admin/relatorio/{codigo}.pdf")
 def gerar_relatorio_pdf(
     codigo: str,

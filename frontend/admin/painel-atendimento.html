@@ -659,8 +659,20 @@
         ADMIN_KEY = key;
         document.getElementById("login-gate").style.display = "none";
         document.getElementById("main-content").style.display = "block";
+        autoBuscar();
       } catch {
         showFeedback("feedback", "error", "Não foi possível conectar à API.");
+      }
+    }
+
+    function autoBuscar() {
+      const params = new URLSearchParams(window.location.search);
+      const codigo = params.get("codigo");
+      const servico = params.get("servico");
+      if (codigo && servico) {
+        document.getElementById("busca-codigo").value = codigo;
+        document.getElementById("busca-servico").value = servico;
+        buscarTriagem();
       }
     }
 

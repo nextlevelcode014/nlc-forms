@@ -355,9 +355,6 @@ def montar_pdf_relatorio(servico: str, triagem: dict, execucao: dict) -> io.Byte
         story.append(t_rodape_valores)
         story.append(Spacer(1, 10))
 
-    # ── Observações internas — propositalmente NÃO incluídas no PDF do cliente ──
-
-    # ── Rodapé ──
     story.append(Spacer(1, 16))
     story.append(HRFlowable(width="100%", thickness=0.5, color=COR_BORDA, spaceAfter=6))
     story.append(Paragraph(

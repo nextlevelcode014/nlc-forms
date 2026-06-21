@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clientes — NextLevelCode</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #0a0a0c;
+      --surface:      #131316;
+      --surface-2:    #1a1a1e;
+      --border:       #1f1f24;
+      --primary:      #4f8ef7;
+      --accent:       #f97316;
+      --text:         #e8e8ea;
+      --muted:        #8a8a92;
+      --muted-darker: #5a5a62;
+      --error:        #ef4444;
+      --success:      #22c55e;
+      --radius:       8px;
+      --font-mono:    'JetBrains Mono', monospace;
+      --font-sans:    'Inter', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 2rem 1rem 5rem;
+    }
+
+    .wrap { max-width: 1080px; margin: 0 auto; }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 2rem;
+    }
+
+    .logo-mark { width: 32px; height: 32px; }
+
+    .logo-text {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .badge {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid rgba(249, 115, 22, 0.3);
+      background: rgba(249, 115, 22, 0.08);
+      padding: 3px 8px;
+      border-radius: 20px;
+    }
+
+    .login-card {
+      max-width: 420px;
+      margin: 4rem auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+    }
+
+    .login-card h1 {
+      font-family: var(--font-mono);
+      font-size: 19px;
+      margin-bottom: 0.4rem;
+    }
+
+    .login-card p {
+      font-size: 13.5px;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+
+    .field { margin-bottom: 1rem; }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 0.4rem;
+      color: var(--text);
+    }
+
+    input, select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      padding: 0.6rem 0.8rem;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input[type="password"] { font-family: var(--font-mono); letter-spacing: 0.05em; }
+
+    input:focus, select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 142, 247, 0.12);
+    }
+
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8a92' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.8rem center;
+      padding-right: 2rem;
+      cursor: pointer;
+    }
+
+    select option { background: var(--surface-2); }
+
+    button {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      border: none;
+      border-radius: var(--radius);
+      padding: 0.65rem 1.3rem;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    button:hover { opacity: 0.85; }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-accent  { background: var(--accent); color: #fff; }
+    .btn-ghost   { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+
+    /* ── Filters ── */
+    .filters {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .filters .field {
+      margin-bottom: 0;
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .filters .field.search {
+      flex: 2;
+      min-width: 220px;
+    }
+
+    .filters .field.small {
+      flex: 0 0 140px;
+      min-width: 120px;
+    }
+
+    .filters .field.btn-filter {
+      flex: 0 0 auto;
+    }
+
+    /* ── Results table ── */
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+
+    thead th {
+      text-align: left;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted-darker);
+      padding: 0.9rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.015);
+      white-space: nowrap;
+    }
+
+    tbody td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.015); }
+
+    td .codigo {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    td .nome-cliente {
+      font-weight: 500;
+    }
+
+    td .email-cliente {
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+
+    .tag-servico {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: rgba(79, 142, 247, 0.08);
+      border: 1px solid rgba(79, 142, 247, 0.2);
+      color: var(--primary);
+    }
+
+    .tag-status {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .tag-status.pendente {
+      background: rgba(234, 179, 8, 0.08);
+      border: 1px solid rgba(234, 179, 8, 0.2);
+      color: #eab308;
+    }
+
+    .tag-status.em_andamento {
+      background: rgba(79, 142, 247, 0.08);
+      border: 1px solid rgba(79, 142, 247, 0.2);
+      color: var(--primary);
+    }
+
+    .tag-status.concluido {
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      color: var(--success);
+    }
+
+    .tag-status.sem_atendimento {
+      background: rgba(142, 142, 146, 0.08);
+      border: 1px solid rgba(142, 142, 146, 0.2);
+      color: var(--muted-darker);
+    }
+
+    td .link-abrir {
+      color: var(--primary);
+      text-decoration: none;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      transition: color 0.15s;
+    }
+
+    td .link-abrir:hover { color: var(--accent); }
+
+    /* ── State messages ── */
+    .state-msg {
+      text-align: center;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 3rem 1rem;
+    }
+
+    /* ── Pagination ── */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .pagination button {
+      font-size: 12px;
+      padding: 0.4rem 0.8rem;
+    }
+
+    .pagination .page-info {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 0.5rem;
+    }
+
+    /* ── Feedback ── */
+    #feedback {
+      display: none;
+      margin: 1rem 0;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-family: var(--font-mono);
+    }
+
+    .fb-error {
+      display: block !important;
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid var(--error);
+      color: var(--error);
+    }
+
+    .fb-success {
+      display: block !important;
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+
+    .count-bar {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    @media (max-width: 768px) {
+      .filters .field { flex: 1 1 100%; }
+      thead th, tbody td { padding: 0.5rem 0.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="wrap">
+
+    <header>
+      <img class="logo-mark" src="logo.png" alt="NextLevelCode" />
+      <span class="logo-text">NextLevelCode</span>
+      <span class="badge">Admin</span>
+    </header>
+
+    <!-- ── Login gate ── -->
+    <div id="login-gate" class="login-card">
+      <h1>clientes</h1>
+      <p>Informe a chave de admin para acessar a lista de clientes.</p>
+      <div class="field">
+        <label for="admin-key">Chave de admin</label>
+        <input type="password" id="admin-key" placeholder="••••••••••••" autocomplete="off" />
+      </div>
+      <button class="btn-primary btn-full" id="btn-entrar">Entrar →</button>
+      <div id="feedback"></div>
+    </div>
+
+    <!-- ── Main content ── -->
+    <div id="main-content" style="display:none">
+
+      <div class="filters">
+        <div class="field search">
+          <label for="filter-search">Buscar</label>
+          <input type="text" id="filter-search" placeholder="Nome, e-mail ou código..." />
+        </div>
+        <div class="field small">
+          <label for="filter-servico">Serviço</label>
+          <select id="filter-servico">
+            <option value="">Todos</option>
+            <option value="suporte">Suporte Técnico</option>
+            <option value="seguranca">Segurança e Privacidade</option>
+            <option value="desenvolvimento">Dev & Automação</option>
+          </select>
+        </div>
+        <div class="field small">
+          <label for="filter-status">Status</label>
+          <select id="filter-status">
+            <option value="">Todos</option>
+            <option value="pendente">Pendente</option>
+            <option value="em_andamento">Em andamento</option>
+            <option value="concluido">Concluído</option>
+          </select>
+        </div>
+        <div class="field btn-filter">
+          <button class="btn-primary" id="btn-filtrar">Filtrar</button>
+        </div>
+      </div>
+
+      <div id="feedback-busca"></div>
+
+      <div id="estado-carregando" class="state-msg">Carregando...</div>
+
+      <div id="resultados" style="display:none">
+        <div class="count-bar" id="count-bar"></div>
+
+        <div class="table-card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Cliente</th>
+                  <th>Serviço</th>
+                  <th>Data</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+
+          <div id="pagination" class="pagination" style="display:none">
+            <button class="btn-ghost" id="btn-prev">← Anterior</button>
+            <span class="page-info" id="page-info"></span>
+            <button class="btn-ghost" id="btn-next">Próximo →</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="estado-vazio" class="state-msg" style="display:none">
+        Nenhum cliente encontrado.
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "https://nextlevelcode.tail181a66.ts.net:8000";
+
+    let ADMIN_KEY = null;
+    let CURRENT_PAGE = 1;
+    let TOTAL = 0;
+
+    const SERVICO_LABEL = {
+      suporte: "Suporte Técnico",
+      seguranca: "Segurança e Privacidade Digital",
+      desenvolvimento: "Dev & Automação",
+    };
+
+    const STATUS_LABEL = {
+      pendente: "Pendente",
+      em_andamento: "Em andamento",
+      concluido: "Concluído",
+    };
+
+    // ── Login ──
+    document.getElementById("btn-entrar").addEventListener("click", entrar);
+    document.getElementById("admin-key").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") entrar();
+    });
+
+    async function entrar() {
+      const key = document.getElementById("admin-key").value.trim();
+      if (!key) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/catalogo?servico=suporte`, {
+          headers: { "X-Admin-Key": key },
+        });
+        if (res.status === 401) {
+          showFeedback("feedback", "error", "Chave de admin inválida.");
+          return;
+        }
+        ADMIN_KEY = key;
+        document.getElementById("login-gate").style.display = "none";
+        document.getElementById("main-content").style.display = "block";
+        carregar();
+      } catch {
+        showFeedback("feedback", "error", "Não foi possível conectar à API.");
+      }
+    }
+
+    // ── Filters ──
+    document.getElementById("btn-filtrar").addEventListener("click", () => {
+      CURRENT_PAGE = 1;
+      carregar();
+    });
+
+    document.getElementById("filter-search").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        CURRENT_PAGE = 1;
+        carregar();
+      }
+    });
+
+    // ── Pagination ──
+    document.getElementById("btn-prev").addEventListener("click", () => {
+      if (CURRENT_PAGE > 1) {
+        CURRENT_PAGE--;
+        carregar();
+      }
+    });
+
+    document.getElementById("btn-next").addEventListener("click", () => {
+      const perPage = 20;
+      if (CURRENT_PAGE * perPage < TOTAL) {
+        CURRENT_PAGE++;
+        carregar();
+      }
+    });
+
+    // ── Load data ──
+    async function carregar() {
+      const search = document.getElementById("filter-search").value.trim();
+      const servico = document.getElementById("filter-servico").value;
+      const status = document.getElementById("filter-status").value;
+
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (servico) params.set("servico", servico);
+      if (status) params.set("status", status);
+      params.set("page", CURRENT_PAGE);
+      params.set("per_page", "20");
+
+      document.getElementById("estado-carregando").style.display = "block";
+      document.getElementById("resultados").style.display = "none";
+      document.getElementById("estado-vazio").style.display = "none";
+      document.getElementById("feedback-busca").className = "";
+      document.getElementById("feedback-busca").style.display = "none";
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/triagens?${params}`, {
+          headers: { "X-Admin-Key": ADMIN_KEY },
+        });
+
+        if (res.status === 401) {
+          showFeedback("feedback-busca", "error", "Sessão inválida. Recarregue a página.");
+          return;
+        }
+
+        const data = await res.json();
+        TOTAL = data.total;
+
+        document.getElementById("estado-carregando").style.display = "none";
+
+        if (data.triagens.length === 0) {
+          document.getElementById("estado-vazio").style.display = "block";
+          return;
+        }
+
+        renderTabela(data);
+        document.getElementById("resultados").style.display = "block";
+      } catch {
+        document.getElementById("estado-carregando").style.display = "none";
+        showFeedback("feedback-busca", "error", "Não foi possível conectar à API.");
+      }
+    }
+
+    function renderTabela(data) {
+      const tbody = document.getElementById("tbody");
+      tbody.innerHTML = "";
+
+      data.triagens.forEach((t) => {
+        const tr = document.createElement("tr");
+
+        const status = t.status || null;
+        const statusCls = status ? status : "sem_atendimento";
+        const statusLabel = status ? (STATUS_LABEL[status] || status) : "Sem atendimento";
+        const servicoLabel = SERVICO_LABEL[t.servico] || t.servico;
+        const criadoEm = t.criado_em
+          ? new Date(t.criado_em).toLocaleDateString("pt-BR")
+          : "—";
+
+        tr.innerHTML = `
+          <td><span class="codigo">${escapeHtml(t.codigo)}</span></td>
+          <td>
+            <div class="nome-cliente">${escapeHtml(t.nome)}</div>
+            <div class="email-cliente">${escapeHtml(t.email)}</div>
+          </td>
+          <td><span class="tag-servico">${escapeHtml(servicoLabel)}</span></td>
+          <td>${criadoEm}</td>
+          <td><span class="tag-status ${statusCls}">${statusLabel}</span></td>
+          <td>
+            <a class="link-abrir" href="painel-atendimento.html?codigo=${encodeURIComponent(t.codigo)}&servico=${t.servico}" target="_blank">
+              abrir →
+            </a>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+
+      // Count
+      const inicio = (data.page - 1) * data.per_page + 1;
+      const fim = Math.min(data.page * data.per_page, data.total);
+      document.getElementById("count-bar").textContent =
+        `${inicio}–${fim} de ${data.total} cliente${data.total !== 1 ? 's' : ''}`;
+
+      // Pagination
+      const totalPages = Math.ceil(data.total / data.per_page);
+      const pagEl = document.getElementById("pagination");
+      if (totalPages <= 1) {
+        pagEl.style.display = "none";
+      } else {
+        pagEl.style.display = "flex";
+        document.getElementById("page-info").textContent = `Página ${data.page} de ${totalPages}`;
+        document.getElementById("btn-prev").disabled = data.page <= 1;
+        document.getElementById("btn-next").disabled = data.page >= totalPages;
+      }
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function showFeedback(elId, type, msg) {
+      const el = document.getElementById(elId);
+      el.className = type === "error" ? "fb-error" : "fb-success";
+      el.textContent = msg;
+    }
+  </script>
+</body>
+</html>
