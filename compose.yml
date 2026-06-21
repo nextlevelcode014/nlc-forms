@@ -19,6 +19,16 @@ services:
     volumes:
       - forms_data:/data
     restart: unless-stopped
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./backend/app
+          target: /app/app
+        - action: sync+restart
+          path: ./backend/pdf_relatorio.py
+          target: /app/pdf_relatorio.py
+        - action: rebuild
+          path: ./backend/pyproject.toml
 
 volumes:
   forms_data:
