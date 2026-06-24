@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import ALLOWED_ORIGINS
 from app.database import init_db, seed_catalogo
 
+from app.routers import admin, triagem, consulta, token, health
+
 init_db()
 seed_catalogo()
 
@@ -17,7 +19,6 @@ app.add_middleware(
     allow_credentials=False,
 )
 
-from app.routers import admin, triagem, consulta, token, health
 
 app.include_router(admin.router)
 app.include_router(triagem.router)

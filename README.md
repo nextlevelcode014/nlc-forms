@@ -95,7 +95,7 @@ cp .env.example .env
 | `SMTP_PASS` | vazio | Senha do SMTP |
 | `SMTP_FROM` | (= SMTP_USER) | Remetente do e-mail |
 | `NOTIFY_TO` | vazio | Seu e-mail (recebe notificações) |
-| `PAINEL_BASE_URL` | `https://nextlevelcode.tail181a66.ts.net:9090` | URL base do admin (link do e-mail) |
+| `PAINEL_BASE_URL` | obrigatória | URL base do admin (link do e-mail) |
 | `RATE_LIMIT` | `10` | Requisições por janela (por IP) |
 | `RATE_LIMIT_WINDOW` | `60` | Janela do rate limit em segundos |
 

@@ -3,11 +3,15 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import smtplib
-import io
 
 from app.config import (
-    SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS,
-    SMTP_FROM, NOTIFY_TO, PAINEL_BASE_URL,
+    SMTP_HOST,
+    SMTP_PORT,
+    SMTP_USER,
+    SMTP_PASS,
+    SMTP_FROM,
+    NOTIFY_TO,
+    PAINEL_BASE_URL,
 )
 
 
@@ -39,12 +43,18 @@ def _enviar_email(to: str, subject: str, html: str, attachments: list | None = N
         print(f"[email] Falha ao enviar para {to}: {e}")
 
 
-def enviar_notificacao_nova_triagem(servico: str, codigo: str, nome: str, email_cliente: str):
+def enviar_notificacao_nova_triagem(
+    servico: str, codigo: str, nome: str, email_cliente: str
+):
     if not SMTP_HOST or not NOTIFY_TO:
-        print(f"[notificação] SMTP não configurado. Triagem {codigo} recebida sem envio de e-mail.")
+        print(
+            f"[notificação] SMTP não configurado. Triagem {codigo} recebida sem envio de e-mail."
+        )
         return
 
-    link_painel = f"{PAINEL_BASE_URL}/painel-atendimento.html?codigo={codigo}&servico={servico}"
+    link_painel = (
+        f"{PAINEL_BASE_URL}/painel-atendimento.html?codigo={codigo}&servico={servico}"
+    )
 
     servico_label = {
         "suporte": "Suporte Técnico",
@@ -91,7 +101,9 @@ def notificar_cliente_triagem(servico: str, codigo: str, nome: str, email: str):
     _enviar_email(email, f"NextLevelCode — {servico_label} — recebido", corpo_html)
 
 
-def enviar_pdf_cliente(servico: str, codigo: str, nome: str, email: str, pdf_bytes: bytes):
+def enviar_pdf_cliente(
+    servico: str, codigo: str, nome: str, email: str, pdf_bytes: bytes
+):
     servico_label = {
         "suporte": "Suporte Técnico",
         "seguranca": "Segurança e Privacidade Digital",
@@ -111,6 +123,13 @@ def enviar_pdf_cliente(servico: str, codigo: str, nome: str, email: str, pdf_byt
     att = MIMEBase("application", "pdf")
     att.set_payload(pdf_bytes)
     encoders.encode_base64(att)
-    att.add_header("Content-Disposition", f'attachment; filename="orcamento-{codigo}.pdf"')
+    att.add_header(
+        "Content-Disposition", f'attachment; filename="orcamento-{codigo}.pdf"'
+    )
 
-    _enviar_email(email, f"NextLevelCode — Orçamento — {servico_label} — {codigo}", corpo_html, attachments=[att])
+    _enviar_email(
+        email,
+        f"NextLevelCode — Orçamento — {servico_label} — {codigo}",
+        corpo_html,
+        attachments=[att],
+    )
