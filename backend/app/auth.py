@@ -26,15 +26,15 @@ def checar_admin(x_admin_key: str | None):
 def validar_e_consumir_token(token: str, servico: str) -> None:
     conn = get_db()
     try:
-        row = conn.execute(
-            "SELECT * FROM tokens WHERE token = ?", (token,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM tokens WHERE token = ?", (token,)).fetchone()
 
         if row is None:
             raise HTTPException(status_code=403, detail="Token inválido.")
 
         if row["servico"] != servico:
-            raise HTTPException(status_code=403, detail="Token não corresponde a este formulário.")
+            raise HTTPException(
+                status_code=403, detail="Token não corresponde a este formulário."
+            )
 
         if row["usado"]:
             raise HTTPException(status_code=403, detail="Este link já foi utilizado.")
