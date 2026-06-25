@@ -65,7 +65,7 @@ Pasta `public/` vai pra Vercel (domínio público separado).
 Pasta `admin/` serve localmente:
 
 ```bash
-python3 -m http.server 9080 -d frontend/admin &
+nohup python3 -m http.server 9080 -d frontend/admin > server.log 2>&1 &
 ```
 
 Exponha na tailnet com Tailscale Serve:
