@@ -16,6 +16,7 @@ nlc-forms/
 │   │   ├── ratelimit.py      #   Rate limiter em memória
 │   │   └── routers/          #   admin, triagem, consulta, token, health
 │   ├── pdf_relatorio.py      # Geração do PDF final (reportlab)
+│   ├── seed_dados.py         # Popula banco com 3 clientes fictícios (1 por serviço)
 │   ├── pyproject.toml
 │   └── Dockerfile
 ├── frontend/
@@ -29,12 +30,48 @@ nlc-forms/
 │       ├── admin-lista-clientes.html
 │       ├── painel-atendimento.html
 │       └── logo.png
+├── docs/
+│   └── arquitetura.puml     # Diagrama PlantUML da arquitetura
 ├── compose.yml               # Docker Compose com env vars
 ├── .env.example              # Template de configuração (commitado)
 ├── .env                      # Configuração real (ignorado pelo git)
+├── Makefile                  # Comandos rápidos (docker, tailscale, front local)
 ├── backup.sh                 # Backup .db + .json → .7z criptografado, envio remoto
-└── restore.sh                # Restaura a partir de .db ou .7z
+├── restore.sh                # Restaura a partir de .db ou .7z
+└── diagrama.puml             # Diagrama PlantUML das tabelas do banco
 ```
+
+## Arquitetura
+
+```
+                        ┌──────────────────┐
+                        │     Vercel       │
+                        │  frontend/public │ ◄── Cliente (URL com token)
+                        └────────┬─────────┘
+                                 │ POST /triagem/{servico}?token=
+                                 ▼
+                   ┌─────────────────────────┐
+                   │  Servidor Casa          │
+                   │  (Tailscale Funnel)     │
+                   │  FastAPI + SQLite       │
+                   │  /triagem/*  (público)  │
+                   │  /admin/*   (privado)   │
+                   └────────┬─────────┬──────┘
+                            │         │
+                            ▼         ▼
+            ┌──────────────────┐   ┌──────────────────┐
+            │ Backup Externo 1 │   │ Backup Externo 2 │
+            │ .7z criptografado│   │ .7z criptografado│
+            └──────────────────┘   └──────────────────┘
+
+  ┌──────────────────┐
+  │  Rede Privada    │
+  │  frontend/admin/ │ ◄── Admin
+  │  (Tailscale)     │
+  └──────────────────┘
+```
+
+Diagrama completo (PlantUML) em [`docs/arquitetura.puml`](docs/arquitetura.puml).
 
 ## Fluxo completo
 
@@ -48,6 +85,27 @@ nlc-forms/
 7. Preenche diagnóstico, serviços realizados, recomendações e itens de orçamento
 8. Gera o PDF final — documento pronto para enviar ao cliente
 ```
+
+## Dados de exemplo
+
+Na primeira inicialização, o `seed_dados.py` popula automaticamente o banco com 3 clientes fictícios (um de cada serviço) com triagem, execução e itens de orçamento preenchidos — úteis para testar a geração de PDF e o fluxo completo.
+
+Os dados atuais:
+
+| Serviço | Cliente | Problema | Valor |
+|---|---|---|---|
+| Suporte | Fábio Rocha | Notebook Lenovo Legion superaquecendo | R$ 450,00 |
+| Segurança | Dona Lúcia Silva | WhatsApp clonado (golpe do código SMS) | R$ 280,00 |
+| Desenvolvimento | Rafael Santos | Sistema de gestão de OS para MEI | R$ 4.600,00 |
+
+Para rodar manualmente:
+
+```bash
+cd backend
+uv run python seed_dados.py
+```
+
+Só insere dados se o banco estiver vazio (idempotente).
 
 ## Testar localmente (WSL / Linux)
 
@@ -245,7 +303,7 @@ Abrir com [DB Browser for SQLite](https://sqlitebrowser.org/) para consultar ou 
 
 **`catalogo_itens`** — itens de orçamento com preço sugerido por serviço (`servico`, `nome`, `valor`, `ativo`). Pré-populado com itens comuns na primeira execução — edite direto no banco se quiser ajustar preços.
 
-**`execucao`** — o que você preenche no painel: `codigo` (vincula à triagem), `status`, `diagnostico`, `servicos_realizados`, `recomendacoes`, `observacoes_internas` (não aparece no PDF), `itens_json`, `valor_total`, `data_atendimento`.
+**`execucao`** — o que você preenche no painel: `codigo` (vincula à triagem), `status`, `diagnostico`, `servicos_realizados`, `recomendacoes`, `observacoes_internas` (não aparece no PDF), `itens_json`, `valor_total`, `data_atendimento`, `validade_orcamento` (exibido no PDF como "Garantia válida até").
 
 ## Endpoints
 
