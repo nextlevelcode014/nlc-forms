@@ -50,12 +50,15 @@ def seed_dados():
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             cod_sup, tokens["suporte"], agora.isoformat(),
-            "Carlos Almeida", "carlos.almeida@email.com", "(11) 99999-1001",
-            "Computador não liga", "Há 3 dias",
-            "Escutou um estalo antes de desligar", "Trocou o cabo de força, sem sucesso",
-            "Dell", "Inspiron 15 3000", "Windows 11", "4 anos",
-            "256GB SSD", "8GB",
-            "Sim", "Google Chrome, Office 365, Zoom", "remoto", "Cliente bastante preocupado com perda de dados"
+            "Fábio Rocha", "fabio.rocha@email.com", "(11) 99887-6543",
+            "Notebook esquenta demais e desliga sozinho durante edição de vídeo no Premiere",
+            "Há 2 semanas, piorando nos últimos 3 dias",
+            "Uso pesado: edição de vídeo 4K no Premiere Pro + After Effects abertos simultaneamente",
+            "Comprei uma base com cooler, mas continua desligando. Limpei a superfície com pincel, nada resolveu.",
+            "Lenovo", "Legion 5 15ARH7", "Windows 11", "1 ano e 8 meses",
+            "1TB NVMe", "32GB",
+            "Sim, Dropbox + HD externo", "Premiere Pro, After Effects, Photoshop, Chrome (várias abas), Discord, Spotify",
+            "presencial", "Cliente é editor de vídeo freelancer e está com jobs atrasados por causa do problema"
         ))
 
         conn.execute("""
@@ -66,20 +69,20 @@ def seed_dados():
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             cod_sup, "suporte", agora.isoformat(), agora.isoformat(), "concluido",
-            "Fonte queimada — substituição necessária. SSD apresentando setores defeituosos.",
-            "Substituição de fonte (450W real), clonagem de SSD para unidade nova (480GB SATA III)",
-            "Realizar limpeza interna em 6 meses. Manter backup em nuvem ativo.",
-            "Cliente optou por SSD de 480GB — estoque tinha disponível.",
+            "Pasta térmica da CPU e GPU ressecada. Cooler interno com acúmulo severo de poeira no dissipador. Ventilador direito com rolamento ruidoso — precisa substituir.",
+            "Limpeza interna completa (dissipadores, ventoinhas, filtros). Substituição de pasta térmica (CPU e GPU — Arctic MX-6). Troca da ventoinha direita por unidade compatível nova. Teste de estresse por 40 min — temperaturas estáveis abaixo de 78°C.",
+            "Usar o notebook em superfície rígida (mesa). Fazer limpeza interna a cada 12 meses. Manter o Dropbox como backup principal.",
+            "Cliente aprovou orçamento na hora — estava desesperado. Notebook voltou a operar normalmente.",
             json.dumps([
                 {"nome": "Diagnóstico técnico", "quantidade": 1, "valor_unitario": 50.0},
-                {"nome": "Substituição de fonte (450W)", "quantidade": 1, "valor_unitario": 120.0},
-                {"nome": "SSD 480GB SATA III", "quantidade": 1, "valor_unitario": 249.0},
-                {"nome": "Clonagem de disco", "quantidade": 1, "valor_unitario": 80.0},
-                {"nome": "Atendimento remoto", "quantidade": 1, "valor_unitario": 40.0},
+                {"nome": "Limpeza interna", "quantidade": 1, "valor_unitario": 100.0},
+                {"nome": "Troca de pasta térmica", "quantidade": 1, "valor_unitario": 100.0},
+                {"nome": "Instalação de ventoinha (nova)", "quantidade": 1, "valor_unitario": 80.0},
+                {"nome": "Ventoinha compatível Lenovo Legion 5", "quantidade": 1, "valor_unitario": 120.0},
             ], ensure_ascii=False),
-            539.0,
-            "2026-06-20",
-            "30/07/2026",
+            450.0,
+            "2026-06-24",
+            "24/08/2026",
         ))
 
         # ── 2. Segurança ──
@@ -92,14 +95,14 @@ def seed_dados():
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             cod_seg, tokens["seguranca"], agora.isoformat(),
-            "Marina Oliveira", "marina.oliveira@email.com", "(21) 98888-2002",
-            "Profissional liberal (advocacia)", "1 notebook (Lenovo ThinkPad), 1 smartphone Android",
-            "E-mail profissional (Google Workspace), nuvem (Google Drive), rede social (Instagram profissional)",
-            "Recebeu e-mail suspeito com cobrança", "Sim",
-            "E-mail falso se passando por banco com link malicioso — não clicou, mas ficou preocupada",
-            "Sim, em e-mail pessoal", "Sim, mas não confia",
-            "Sim, em HD externo", "remoto",
-            "Cliente quer revisão completa de segurança digital"
+            "Dona Lúcia Silva", "lucia.silva@email.com", "(21) 97765-4321",
+            "Aposentada", "1 smartphone Motorola Moto G54, 1 tablet Samsung Galaxy Tab A (usado só pra Netflix)",
+            "WhatsApp, Instagram, YouTube, e-mail pessoal (Gmail), Internet Banking (Banco do Brasil)",
+            "Entraram no meu WhatsApp e estão pedindo dinheiro para meus contatos", "Sim",
+            "Recebeu mensagem de 'amiga' pedindo código que chegou por SMS. Passou o código. Perdeu acesso ao WhatsApp. Golpistas estão mandando mensagens para a lista de contatos pedindo Pix de R$ 600 'emprestado'.",
+            "Não", "Não",
+            "Não", "remoto",
+            "Cliente está muito abalada e com medo. Filha dela que entrou em contato conosco — Dona Lúcia não está conseguindo dormir."
         ))
 
         conn.execute("""
@@ -110,20 +113,19 @@ def seed_dados():
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
             cod_seg, "seguranca", agora.isoformat(), agora.isoformat(), "concluido",
-            "2FA não estava ativo no Google Workspace. Senhas fracas identificadas (repetição em 3 contas). Backup externo desatualizado (último há 4 meses).",
-            "Ativação de 2FA no Google Workspace (todos os usuários). Configuração do Bitwarden. Backup automatizado configurado (nuvem + local). Troca de senhas. Treinamento básico de phishing.",
-            "Manter backup automático semanal. Revisar permissões do Google Drive. Não clicar em links suspeitos — sempre verificar remetente.",
-            "Cliente demonstrou interesse no pacote de assessoria mensal básico.",
+            "WhatsApp clonado via código SMS compartilhado. 2FA desativado no Gmail. Senha do e-mail era '123456'. Dispositivos sem qualquer proteção de tela. Celular sem atualização de segurança (Moto G54 travado no Android 13).",
+            "Recuperação do WhatsApp (contato com suporte, cancelamento da conta antiga, reativação com 2FA). Ativação de 2FA no Gmail e WhatsApp. Troca de senhas de e-mail e banco (geradas pelo Bitwarden). Instalação do Bitwarden e Configuração de senha mestra biométrica no celular. Remoção de acesso de terceiros no Google. Bloqueio de tela com PIN. Orientação completa sobre golpes: não compartilhar códigos, não clicar em links de desconhecidos, verificar contatos antes de transferências.",
+            "Nunca compartilhar código de verificação com ninguém. Ativar 2FA em tudo que for possível. Manter celular atualizado. Usar o Bitwarden para gerar e guardar senhas.",
+            "Filha da cliente acompanhou tudo. Foi recomendado o pacote de assessoria mensal básico para acompanhamento contínuo — estão avaliando.",
             json.dumps([
                 {"nome": "Diagnóstico de segurança digital", "quantidade": 1, "valor_unitario": 80.0},
-                {"nome": "Configuração de 2FA (por conta)", "quantidade": 3, "valor_unitario": 20.0},
                 {"nome": "Configuração de gerenciador de senhas", "quantidade": 1, "valor_unitario": 60.0},
-                {"nome": "Configuração de backup automatizado", "quantidade": 1, "valor_unitario": 70.0},
+                {"nome": "Configuração de 2FA (por conta)", "quantidade": 2, "valor_unitario": 20.0},
                 {"nome": "Treinamento de boas práticas (sessão)", "quantidade": 1, "valor_unitario": 100.0},
             ], ensure_ascii=False),
-            310.0,
-            "2026-06-22",
-            "31/07/2026",
+            280.0,
+            "2026-06-23",
+            "23/08/2026",
         ))
 
         # ── 3. Desenvolvimento ──
