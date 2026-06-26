@@ -1,0 +1,115 @@
+@startuml
+
+entity tokens {
+  *token : TEXT
+  --
+  *servico : TEXT
+  *criado_em : TEXT
+  *expira_em : TEXT
+  usado : INTEGER
+  usado_em : TEXT
+  nota : TEXT
+}
+
+entity triagem_suporte {
+  *id : INTEGER
+  --
+  *codigo : TEXT
+  token : TEXT
+  *criado_em : TEXT
+  *nome : TEXT
+  *email : TEXT
+  telefone : TEXT
+  *problema : TEXT
+  *quando : TEXT
+  causa : TEXT
+  tentou : TEXT
+  *marca : TEXT
+  modelo : TEXT
+  *sistema : TEXT
+  idade : TEXT
+  armazenamento : TEXT
+  ram : TEXT
+  *tem_backup : TEXT
+  *programas : TEXT
+  *modalidade : TEXT
+  observacoes : TEXT
+}
+
+entity triagem_seguranca {
+  *id : INTEGER
+  --
+  *codigo : TEXT
+  token : TEXT
+  *criado_em : TEXT
+  *nome : TEXT
+  *email : TEXT
+  telefone : TEXT
+  *perfil : TEXT
+  *dispositivos : TEXT
+  *servicos : TEXT
+  *preocupacao : TEXT
+  *incidente : TEXT
+  incidente_desc : TEXT
+  *usa_2fa : TEXT
+  *usa_gerenciador : TEXT
+  *tem_backup : TEXT
+  *modalidade : TEXT
+  observacoes : TEXT
+}
+
+entity triagem_desenvolvimento {
+  *id : INTEGER
+  --
+  *codigo : TEXT
+  token : TEXT
+  *criado_em : TEXT
+  *nome : TEXT
+  *email : TEXT
+  telefone : TEXT
+  *tipo_cliente : TEXT
+  *tipo_projeto : TEXT
+  *descricao : TEXT
+  *tem_referencia : TEXT
+  referencia_url : TEXT
+  *prazo : TEXT
+  *orcamento : TEXT
+  *ja_tem_algo : TEXT
+  ja_tem_desc : TEXT
+  stack_preferida : TEXT
+  observacoes : TEXT
+}
+
+entity catalogo_itens {
+  *id : INTEGER
+  --
+  *servico : TEXT
+  *nome : TEXT
+  *valor : REAL
+  ativo : INTEGER
+}
+
+entity execucao {
+  *id : INTEGER
+  --
+  *codigo : TEXT
+  *servico : TEXT
+  *criado_em : TEXT
+  atualizado_em : TEXT
+  *status : TEXT
+  diagnostico : TEXT
+  servicos_realizados : TEXT
+  recomendacoes : TEXT
+  observacoes_internas : TEXT
+  itens_json : TEXT
+  valor_total : REAL
+  data_atendimento : TEXT
+  validade_orcamento : TEXT
+  pdf_gerado_em : TEXT
+}
+
+tokens ||--o{ triagem_suporte : token
+tokens ||--o{ triagem_seguranca : token
+tokens ||--o{ triagem_desenvolvimento : token
+
+@enduml

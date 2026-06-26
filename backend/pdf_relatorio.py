@@ -335,7 +335,7 @@ def montar_pdf_relatorio(servico: str, triagem: dict, execucao: dict) -> io.Byte
         story.append(t_orcamento)
 
         valor_total = execucao.get("valor_total", 0)
-        texto_validade = f"Orçamento válido até: <b>{validade}</b>" if validade else ""
+        texto_validade = f"Garantia válida até: <b>{validade}</b>" if validade else ""
 
         t_rodape_valores = Table(
             [[

@@ -11,6 +11,7 @@ RUN uv sync --no-dev
 
 COPY app app/
 COPY pdf_relatorio.py .
+COPY seed_dados.py .
 
 EXPOSE 8000
 

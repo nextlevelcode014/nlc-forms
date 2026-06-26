@@ -135,24 +135,30 @@ def init_db():
 def seed_catalogo():
     conn = get_db()
     try:
-        existe = conn.execute("SELECT COUNT(*) as c FROM catalogo_itens").fetchone()["c"]
+        existe = conn.execute("SELECT COUNT(*) as c FROM catalogo_itens").fetchone()[
+            "c"
+        ]
         if existe > 0:
             return
 
         itens_padrao = [
-            ("suporte", "Diagnóstico de hardware e software", 50.0),
-            ("suporte", "Limpeza e otimização do sistema", 70.0),
-            ("suporte", "Remoção de vírus e malware", 80.0),
-            ("suporte", "Formatação e reinstalação do sistema", 120.0),
-            ("suporte", "Instalação de drivers e atualizações", 40.0),
-            ("suporte", "Limpeza interna (poeira e ventilação)", 60.0),
-            ("suporte", "Troca de pasta térmica", 70.0),
-            ("suporte", "Upgrade de SSD (mão de obra)", 80.0),
-            ("suporte", "Upgrade de memória RAM (mão de obra)", 50.0),
-            ("suporte", "Configuração de impressora/periféricos", 40.0),
-            ("suporte", "Configuração de rede e Wi-Fi", 40.0),
-            ("suporte", "Backup e organização de arquivos", 60.0),
-            ("suporte", "Visita técnica (presencial)", 50.0),
+            ("suporte", "Diagnóstico técnico", 50.0),
+            ("suporte", "Atendimento remoto", 40.0),
+            ("suporte", "Visita técnica presencial", 50.0),
+            ("suporte", "Otimização e recuperação de desempenho", 100.0),
+            ("suporte", "Remoção de vírus e malware", 100.0),
+            ("suporte", "Formatação e configuração completa", 150.0),
+            ("suporte", "Instalação ou reinstalação de sistema operacional", 120.0),
+            ("suporte", "Backup ou migração de arquivos", 80.0),
+            ("suporte", "Configuração de impressoras e periféricos", 60.0),
+            ("suporte", "Configuração de rede e Wi-Fi", 80.0),
+            ("suporte", "Limpeza interna", 100.0),
+            ("suporte", "Troca de pasta térmica", 100.0),
+            ("suporte", "Limpeza interna + troca de pasta térmica", 150.0),
+            ("suporte", "Instalação de SSD (mão de obra)", 80.0),
+            ("suporte", "Instalação de memória RAM (mão de obra)", 60.0),
+            ("suporte", "Configuração inicial de computador novo", 100.0),
+            ("suporte", "Montagem de computador", 180.0),
             ("seguranca", "Diagnóstico de segurança digital", 80.0),
             ("seguranca", "Configuração de gerenciador de senhas", 60.0),
             ("seguranca", "Configuração de 2FA (por conta)", 20.0),
@@ -162,13 +168,27 @@ def seed_catalogo():
             ("seguranca", "Treinamento de boas práticas (sessão)", 100.0),
             ("seguranca", "Assessoria mensal — pacote básico", 150.0),
             ("seguranca", "Assessoria mensal — pacote avançado", 280.0),
-            ("desenvolvimento", "Automação simples (script único)", 250.0),
-            ("desenvolvimento", "Automação com integração de API", 500.0),
-            ("desenvolvimento", "Landing page simples", 600.0),
-            ("desenvolvimento", "Aplicação web básica (CRUD)", 1500.0),
-            ("desenvolvimento", "Dashboard/painel administrativo", 1800.0),
-            ("desenvolvimento", "API REST simples", 800.0),
-            ("desenvolvimento", "Hora técnica avulsa", 80.0),
+            ("desenvolvimento", "Landing page", 600.0),
+            ("desenvolvimento", "Site institucional", 1200.0),
+            ("desenvolvimento", "Aplicação web simples (CRUD)", 1500.0),
+            ("desenvolvimento", "Dashboard administrativo", 1800.0),
+            ("desenvolvimento", "Sistema web personalizado", 2500.0),
+            ("desenvolvimento", "API REST", 800.0),
+            ("desenvolvimento", "Integração com API externa", 500.0),
+            ("desenvolvimento", "Automação simples", 300.0),
+            ("desenvolvimento", "Automação com integração de API", 800.0),
+            ("desenvolvimento", "Formulário e coleta de dados", 400.0),
+            ("desenvolvimento", "Painel de consulta e relatórios", 1000.0),
+            ("desenvolvimento", "Área de login e autenticação", 500.0),
+            ("desenvolvimento", "Migração ou importação de dados", 500.0),
+            ("desenvolvimento", "Hospedagem e implantação", 300.0),
+            ("desenvolvimento", "Manutenção ou ajuste de sistema existente", 300.0),
+            ("desenvolvimento", "Hora técnica avulsa", 100.0),
+            ("desenvolvimento", "Presença digital", 900.0),
+            ("desenvolvimento", "Site profissional", 1500.0),
+            ("desenvolvimento", "Sistema de gestão básico", 2500.0),
+            ("desenvolvimento", "Automação de processos", 1000.0),
+            ("desenvolvimento", "Sistema sob medida", 3500.0),
         ]
 
         conn.executemany(

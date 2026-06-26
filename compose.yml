@@ -28,6 +28,9 @@ services:
         - action: sync
           path: ./backend/pdf_relatorio.py
           target: /app/pdf_relatorio.py
+        - action: sync
+          path: ./backend/seed_dados.py
+          target: /app/seed_dados.py
         - action: rebuild
           path: ./backend/pyproject.toml
 

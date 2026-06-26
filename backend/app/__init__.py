@@ -3,11 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import ALLOWED_ORIGINS
 from app.database import init_db, seed_catalogo
+from seed_dados import seed_dados
 
 from app.routers import admin, triagem, consulta, token, health
 
 init_db()
 seed_catalogo()
+seed_dados()
 
 app = FastAPI(title="NextLevelCode Forms API")
 
