@@ -1,0 +1,77 @@
+@startuml
+title nlc-forms — Diagrama de Arquitetura
+
+actor Cliente
+actor Admin
+
+package "Vercel" {
+  component "frontend/public/" as public
+  note right of public
+    triagem-suporte.html
+    triagem-seguranca.html
+    triagem-desenvolvimento.html
+    index.html
+  end note
+}
+
+package "Rede Privada\n(Tailscale)" {
+  component "frontend/admin/" as adminfe
+  note right of adminfe
+    admin-gerar-token.html
+    painel-atendimento.html
+    admin-lista-clientes.html
+    index.html
+  end note
+}
+
+package "Servidor Casa\n(Tailscale Funnel)" {
+  component "FastAPI\n(uvicorn)" as api
+  database "SQLite\n/data/forms.db" as db
+
+  note bottom of api
+    Endpoints publicos:
+    GET  /triagem/{servico}?token=
+    GET  /consulta/{codigo}
+    GET  /token/{token}/validar
+
+    Endpoints privados (admin):
+    POST /admin/gerar-token
+    GET  /admin/triagens
+    GET  /admin/triagem/{codigo}
+    POST /admin/execucao
+    GET  /admin/relatorio/{codigo}.pdf
+    POST /admin/enviar-pdf
+    GET  /admin/catalogo
+  end note
+}
+
+package "Backup Externo 1" {
+  database ".7z criptografado\n(rsync over SSH)" as bkp1
+}
+
+package "Backup Externo 2" {
+  database ".7z criptografado\n(rsync over SSH)" as bkp2
+}
+
+' ── Fluxo principal ──
+Cliente --> public : "1. Acessa URL com token\n(enviada por WhatsApp/e-mail)"
+public --> api : "2. POST /triagem/{servico}?token="
+note right on link : Token validado e consumido
+
+' ── Admin ──
+Admin --> adminfe : "3. Acessa painel\n(rede privada)"
+adminfe --> api : "4. GET/POST /admin/*\n(Header: X-Admin-Key)"
+note right on link : Autenticacao por chave
+
+' ── Banco ──
+api --> db : "5. Leitura e escrita\n(SQLite)"
+
+' ── Notificacao ──
+api --> Cliente : "6. Email de confirmacao\ne PDF do orcamento"
+
+' ── Backup ──
+api --> bkp1 : "7. Cron diario (3h)"
+api --> bkp2 : "7. Cron diario (3h)"
+note right on link : 7z com senha + rsync
+
+@enduml
