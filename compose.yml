@@ -2,24 +2,37 @@ services:
   api:
     build: ./backend
     container_name: nlc-forms-api
-    command: uv run uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+    # --proxy-headers: atrás do Tailscale Funnel o IP real vem no
+    # X-Forwarded-For; sem isso o rate limit trata todo mundo como um cliente só.
+    command: >
+      uv run uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+      --proxy-headers --forwarded-allow-ips "*"
     ports:
       - "8000:8000"
+    # env_file em vez de listar variável por variável: o que estiver no .env
+    # chega no container sem precisar editar dois arquivos a cada nova config.
+    env_file:
+      - .env
     environment:
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
-      DB_PATH: ${DB_PATH}
-      ADMIN_KEY: ${ADMIN_KEY}
-      TOKEN_TTL_HOURS: ${TOKEN_TTL_HOURS}
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASS: ${SMTP_PASS}
-      SMTP_FROM: ${SMTP_FROM}
-      NOTIFY_TO: ${NOTIFY_TO}
-      PAINEL_BASE_URL: ${PAINEL_BASE_URL}
+      # Fixo aqui porque é o caminho do volume, não uma escolha do .env.
+      DB_PATH: /data/forms.db
     volumes:
       - forms_data:/data
+      # Imagens dos relatórios em Markdown. Montado, e não copiado na imagem:
+      # soltar um .png na pasta passa a valer no próximo PDF gerado, sem
+      # rebuild. Sem isto, `![x](figura.png)` só encontrava o arquivo fora do
+      # container e virava "[imagem não incorporada]" em produção.
+      - ./backend/relatorios_imagens:/app/relatorios_imagens
+      # Arte da capa, pelo mesmo motivo: exportar uma capa nova do Canva vale no
+      # PDF seguinte, sem rebuild da imagem.
+      - ./backend/marca/arte:/app/marca/arte
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     develop:
       watch:
         - action: sync
@@ -28,6 +41,12 @@ services:
         - action: sync
           path: ./backend/pdf_relatorio.py
           target: /app/pdf_relatorio.py
+        - action: sync
+          path: ./backend/relatorio_md.py
+          target: /app/relatorio_md.py
+        - action: sync
+          path: ./backend/marca
+          target: /app/marca
         - action: sync
           path: ./backend/seed_dados.py
           target: /app/seed_dados.py
