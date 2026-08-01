@@ -273,6 +273,17 @@ def salvar_execucao(
     if data.servico not in TABELAS_POR_SERVICO:
         raise HTTPException(status_code=400, detail="Serviço inválido.")
 
+    # Status e passo do histórico são o mesmo vocabulário. Eles nasceram
+    # separados — o painel oferecia pendente/em_andamento/concluido enquanto a
+    # régua do cliente esperava os PASSOS — e o resultado era a régua nunca
+    # avançar: só "concluido" existia nos dois lados. Validar aqui é o que
+    # impede a divergência de voltar em silêncio.
+    if data.status not in PASSOS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Status inválido. Use um de: {', '.join(PASSOS)}",
+        )
+
     conn = get_db()
     try:
         tabela = TABELAS_POR_SERVICO[data.servico]

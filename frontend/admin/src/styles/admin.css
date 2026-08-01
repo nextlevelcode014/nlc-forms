@@ -245,12 +245,20 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
-.tag--pendente {
+/* Uma cor por fase, não uma por passo: laranja é espera (a bola está com o
+   cliente ou com o fornecedor), azul é trabalho em andamento, verde é fim.
+   As classes acompanham os PASSOS de app/historico.py — passo novo sem regra
+   aqui cai no estilo base da .tag, que continua legível. */
+.tag--recebido,
+.tag--aguardando_aprovacao,
+.tag--aguardando_peca {
   color: var(--hot);
   background: var(--hot-quiet);
 }
 
-.tag--em_andamento {
+.tag--em_analise,
+.tag--orcamento_enviado,
+.tag--em_execucao {
   color: var(--accent);
   background: var(--accent-quiet);
 }

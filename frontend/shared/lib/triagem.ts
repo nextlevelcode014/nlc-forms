@@ -475,8 +475,3 @@ export const RESUMO_ADMIN: Record<Servico, ItemResumo[]> = {
   ],
 };
 
-export const STATUS_LABEL: Record<string, string> = {
-  pendente: 'Pendente',
-  em_andamento: 'Em andamento',
-  concluido: 'Concluído',
-};

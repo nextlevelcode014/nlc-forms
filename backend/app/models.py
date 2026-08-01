@@ -110,7 +110,7 @@ class RelatorioMdRequest(BaseModel):
 class SalvarExecucaoRequest(BaseModel):
     codigo: str
     servico: str
-    status: str = "concluido"
+    status: str = "recebido"
     diagnostico: str = ""
     servicos_realizados: str = ""
     recomendacoes: str = ""

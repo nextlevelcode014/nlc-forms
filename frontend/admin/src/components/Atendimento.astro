@@ -1,5 +1,7 @@
 ---
-import { STATUS_LABEL } from '@nlc/shared/lib/triagem';
+// As opções são preenchidas em runtime a partir de /admin/passos: status e
+// passo do histórico são o mesmo vocabulário, e mantê-lo aqui em paralelo foi
+// o que fez a régua do cliente nunca avançar.
 ---
 
 <div id="detalhe" hidden>
@@ -73,15 +75,7 @@ import { STATUS_LABEL } from '@nlc/shared/lib/triagem';
       <section class="cartao">
         <div class="cartao__topo">
           <h2 class="cartao__titulo">Execução do atendimento</h2>
-          <select id="status">
-            {
-              Object.entries(STATUS_LABEL).map(([v, r]) => (
-                <option value={v} selected={v === 'concluido'}>
-                  {r}
-                </option>
-              ))
-            }
-          </select>
+          <select id="status"></select>
         </div>
 
         <div class="campo-par">
@@ -281,6 +275,7 @@ Texto do relatório em Markdown..."></textarea>
 <script>
   import { api, baixarPdf, ErroApi } from '@nlc/shared/lib/api';
   import { chaveAtual, traduzirErro } from '@nlc/shared/lib/admin';
+  import { carregarPassos } from '@nlc/shared/lib/passos';
   import { ROTULO_SERVICO, RESUMO_ADMIN, type Servico } from '@nlc/shared/lib/triagem';
 
   interface Item {
@@ -889,23 +884,22 @@ Texto do relatório em Markdown..."></textarea>
 
   // ── Linha do tempo ──────────────────────────────────────────
 
-  /** Os passos vêm da API para o painel não manter a própria cópia da lista. */
-  async function carregarPassos() {
-    const seletor = el<HTMLSelectElement>('evento-passo');
-    if (seletor.options.length > 0) return;
+  /** Preenche os dois seletores que falam de passo: o do evento e o do status. */
+  async function preencherPassos() {
+    const doEvento = el<HTMLSelectElement>('evento-passo');
+    const doStatus = el<HTMLSelectElement>('status');
+    if (doEvento.options.length > 0) return;
 
     try {
-      const { passos } = await api<{ passos: { passo: string; rotulo: string }[] }>(
-        '/admin/passos',
-        { adminKey: chaveAtual() },
-      );
+      const passos = await carregarPassos(chaveAtual());
       for (const p of passos) {
-        seletor.append(new Option(p.rotulo, p.passo));
+        doEvento.append(new Option(p.rotulo, p.passo));
+        doStatus.append(new Option(p.rotulo, p.passo));
       }
-      seletor.append(new Option('Outro (escrever)', 'manual'));
+      doEvento.append(new Option('Outro (escrever)', 'manual'));
     } catch {
-      // Sem os passos o campo de texto livre ainda funciona.
-      seletor.append(new Option('Outro (escrever)', 'manual'));
+      // Sem a lista o campo de texto livre ainda funciona.
+      doEvento.append(new Option('Outro (escrever)', 'manual'));
     }
   }
 
@@ -914,7 +908,7 @@ Texto do relatório em Markdown..."></textarea>
     el('link-acompanhamento').textContent = codigoAtual
       ? `o cliente acompanha por ${codigoAtual}`
       : '';
-    carregarPassos();
+    preencherPassos();
   }
 
   function itemEvento(e: Evento): HTMLLIElement {

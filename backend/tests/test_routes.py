@@ -788,3 +788,56 @@ class TestBuscaNaLista:
         r = client.get("/admin/triagens?search=Fábio&status=concluido", headers=ADMIN)
         assert r.status_code == 200
         assert r.json()["total"] == 1
+
+
+class TestVocabularioUnico:
+    """Status do atendimento e passo do histórico são a mesma lista.
+
+    Nasceram separados: o painel oferecia pendente/em_andamento/concluido e a
+    régua do cliente esperava os PASSOS. Só `concluido` existia nos dois lados,
+    então mudar o status não movia a régua nem gerava evento — o cliente via o
+    atendimento parado enquanto ele andava.
+    """
+
+    def _abrir(self):
+        token = criar_token("suporte")
+        return client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA).json()["codigo"]
+
+    def test_status_fora_do_vocabulario_recusa(self):
+        codigo = self._abrir()
+        r = client.post(
+            "/admin/execucao",
+            json={"codigo": codigo, "servico": "suporte", "status": "em_andamento", "itens": []},
+            headers=JSON_ADMIN,
+        )
+        assert r.status_code == 400
+        assert "Status inválido" in r.json()["detail"]
+
+    def test_todo_status_aceito_casa_com_um_passo(self):
+        """O contrato que a régua do cliente depende."""
+        codigo = self._abrir()
+        passos = [p["passo"] for p in client.get("/admin/passos", headers=ADMIN).json()["passos"]]
+
+        for passo in passos:
+            client.post(
+                "/admin/execucao",
+                json={"codigo": codigo, "servico": "suporte", "status": passo, "itens": []},
+                headers=JSON_ADMIN,
+            )
+            dados = client.get(f"/acompanhar/{codigo}").json()
+            assert dados["status"] == passo
+            assert passo in [p["passo"] for p in dados["passos"]], (
+                f"{passo} não está na régua — a régua não teria como avançar"
+            )
+
+    def test_status_avanca_a_regua_e_registra_o_evento(self):
+        codigo = self._abrir()
+        client.post(
+            "/admin/execucao",
+            json={"codigo": codigo, "servico": "suporte", "status": "aguardando_peca", "itens": []},
+            headers=JSON_ADMIN,
+        )
+        dados = client.get(f"/acompanhar/{codigo}").json()
+        posicao = [p["passo"] for p in dados["passos"]].index(dados["status"])
+        assert posicao > 0, "a régua ficaria no começo"
+        assert "aguardando_peca" in [e["passo"] for e in dados["historico"]]

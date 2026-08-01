@@ -1,5 +1,5 @@
 ---
-import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
+import { ROTULO_SERVICO } from '@nlc/shared/lib/triagem';
 ---
 
 <div id="lista">
@@ -17,9 +17,10 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
     </div>
     <div class="campo">
       <label for="filtro-status">Status</label>
+      <!-- Preenchido em runtime a partir de /admin/passos, mesma fonte do
+           seletor de status do atendimento e da régua do cliente. -->
       <select id="filtro-status">
         <option value="">Todos</option>
-        {Object.entries(STATUS_LABEL).map(([v, r]) => <option value={v}>{r}</option>)}
       </select>
     </div>
     <button class="btn" id="btn-filtrar">Filtrar</button>
@@ -82,7 +83,8 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
   import { api } from '@nlc/shared/lib/api';
   import { chaveAtual, traduzirErro } from '@nlc/shared/lib/admin';
   import { listarClientes, type ClienteComResumo } from '@nlc/shared/lib/clientes';
-  import { ROTULO_SERVICO, STATUS_LABEL, type Servico } from '@nlc/shared/lib/triagem';
+  import { carregarPassos, rotuloDe, type Passo } from '@nlc/shared/lib/passos';
+  import { ROTULO_SERVICO, type Servico } from '@nlc/shared/lib/triagem';
 
   const POR_PAGINA = 20;
 
@@ -115,6 +117,7 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
 
   let pagina = 1;
   let total = 0;
+  let passos: Passo[] = [];
 
   async function carregar() {
     const params = new URLSearchParams({ page: String(pagina), per_page: String(POR_PAGINA) });
@@ -186,7 +189,7 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
         marcado(
           'span',
           `tag tag--${t.status ?? 'sem_atendimento'}`,
-          t.status ? (STATUS_LABEL[t.status] ?? t.status) : 'Sem atendimento',
+          rotuloDe(passos, t.status),
         ),
       ),
       celula(abrir(t)),
@@ -322,13 +325,26 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
     el('painel-cruzados').hidden = true;
   });
 
+  /** O filtro de status usa a mesma lista do backend — sem cópia local. */
+  async function preencherFiltroStatus() {
+    const seletor = el<HTMLSelectElement>('filtro-status');
+    if (seletor.options.length > 1) return;
+
+    try {
+      passos = await carregarPassos(chaveAtual());
+      for (const p of passos) seletor.append(new Option(p.rotulo, p.passo));
+    } catch {
+      // Sem a lista o filtro fica só com "Todos" e a tabela mostra o valor cru.
+    }
+  }
+
   document.addEventListener('admin:entrou', () => {
     // Link vindo do e-mail de nova triagem: abre direto no atendimento.
     const params = new URLSearchParams(location.search);
     const codigo = params.get('codigo');
     const servico = params.get('servico');
 
-    carregar();
+    preencherFiltroStatus().then(carregar);
 
     if (codigo && servico) {
       document.dispatchEvent(new CustomEvent('admin:abrir', { detail: { codigo, servico } }));
