@@ -570,9 +570,9 @@ class TestHistorico:
         token = criar_token("suporte")
         codigo = client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA).json()["codigo"]
 
-        client.post(
-            "/admin/execucao",
-            json={"codigo": codigo, "servico": "suporte", "status": "em_execucao", "itens": []},
+        client.patch(
+            f"/admin/execucao/{codigo}/status",
+            json={"servico": "suporte", "status": "em_execucao"},
             headers=JSON_ADMIN,
         )
         r = client.get(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN)
@@ -583,9 +583,9 @@ class TestHistorico:
         token = criar_token("suporte")
         codigo = client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA).json()["codigo"]
 
-        corpo = {"codigo": codigo, "servico": "suporte", "status": "em_execucao", "itens": []}
-        client.post("/admin/execucao", json=corpo, headers=JSON_ADMIN)
-        client.post("/admin/execucao", json=corpo, headers=JSON_ADMIN)
+        corpo = {"servico": "suporte", "status": "em_execucao"}
+        client.patch(f"/admin/execucao/{codigo}/status", json=corpo, headers=JSON_ADMIN)
+        client.patch(f"/admin/execucao/{codigo}/status", json=corpo, headers=JSON_ADMIN)
 
         r = client.get(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN)
         passos = [e["passo"] for e in r.json()["historico"]]
@@ -819,9 +819,9 @@ class TestVocabularioUnico:
         passos = [p["passo"] for p in client.get("/admin/passos", headers=ADMIN).json()["passos"]]
 
         for passo in passos:
-            client.post(
-                "/admin/execucao",
-                json={"codigo": codigo, "servico": "suporte", "status": passo, "itens": []},
+            client.patch(
+                f"/admin/execucao/{codigo}/status",
+                json={"servico": "suporte", "status": passo},
                 headers=JSON_ADMIN,
             )
             dados = client.get(f"/acompanhar/{codigo}").json()
@@ -832,9 +832,9 @@ class TestVocabularioUnico:
 
     def test_status_avanca_a_regua_e_registra_o_evento(self):
         codigo = self._abrir()
-        client.post(
-            "/admin/execucao",
-            json={"codigo": codigo, "servico": "suporte", "status": "aguardando_peca", "itens": []},
+        client.patch(
+            f"/admin/execucao/{codigo}/status",
+            json={"servico": "suporte", "status": "aguardando_peca"},
             headers=JSON_ADMIN,
         )
         dados = client.get(f"/acompanhar/{codigo}").json()
@@ -919,3 +919,63 @@ class TestStatusAvulso:
         assert client.patch(
             f"/admin/execucao/{codigo}/status", json={"servico": "suporte", "status": "concluido"}
         ).status_code == 401
+
+
+class TestPassoMoveOAndamento:
+    """Registrar um passo conhecido É mover o atendimento.
+
+    Eram dois controles no painel: o seletor do cartão "Andamento" só
+    acrescentava evento, e quem movia a régua era outro seletor, no cartão de
+    execução mais abaixo. Registrar "Orçamento enviado" enchia a linha do tempo
+    e o cliente continuava vendo "triagem recebida".
+    """
+
+    def _abrir(self):
+        token = criar_token("suporte")
+        return client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA).json()["codigo"]
+
+    def _registrar(self, codigo, passo, **extra):
+        return client.post(
+            "/admin/historico",
+            json={"codigo": codigo, "passo": passo, **extra},
+            headers=JSON_ADMIN,
+        )
+
+    def test_registrar_passo_move_a_regua(self):
+        codigo = self._abrir()
+        assert self._registrar(codigo, "orcamento_enviado").status_code == 201
+        assert client.get(f"/acompanhar/{codigo}").json()["status"] == "orcamento_enviado"
+
+    def test_funciona_sem_execucao_previa(self):
+        """O caso da Helena: triagem sem atendimento nenhum registrado."""
+        codigo = self._abrir()
+        self._registrar(codigo, "em_analise")
+
+        dados = client.get(f"/acompanhar/{codigo}").json()
+        assert dados["status"] == "em_analise"
+        posicao = [p["passo"] for p in dados["passos"]].index(dados["status"])
+        assert posicao > 0
+
+    def test_evento_interno_nao_move(self):
+        """Anotação sua não é comunicação — não pode mexer no que o cliente vê."""
+        codigo = self._abrir()
+        self._registrar(codigo, "concluido", visivel_cliente=False)
+        assert client.get(f"/acompanhar/{codigo}").json()["status"] == "recebido"
+
+    def test_evento_manual_nao_move(self):
+        """Texto livre é recado, não etapa."""
+        codigo = self._abrir()
+        self._registrar(codigo, "manual", detalhe="liguei, não atendeu")
+        assert client.get(f"/acompanhar/{codigo}").json()["status"] == "recebido"
+
+    def test_salvar_atendimento_nao_rebobina(self):
+        """Salvar o atendimento não pode desfazer o andamento sem querer."""
+        codigo = self._abrir()
+        self._registrar(codigo, "em_execucao")
+
+        client.post(
+            "/admin/execucao",
+            json={"codigo": codigo, "servico": "suporte", "diagnostico": "x", "itens": []},
+            headers=JSON_ADMIN,
+        )
+        assert client.get(f"/acompanhar/{codigo}").json()["status"] == "em_execucao"

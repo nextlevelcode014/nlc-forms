@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header, Query
 from fastapi.responses import StreamingResponse
 
 from app.config import SERVICOS_VALIDOS, settings
-from app.database import get_db, TABELAS_POR_SERVICO
+from app.database import get_db, localizar_por_codigo, TABELAS_POR_SERVICO
 from app.auth import checar_admin, gerar_token
 from app.clientes import exigir_cliente
 from app.historico import (
@@ -182,6 +182,30 @@ def excluir_triagem(
         conn.close()
 
 
+def _definir_status(conn, codigo: str, servico: str, status: str) -> None:
+    """Move o andamento, criando a execução se ela ainda não existir.
+
+    Um só lugar decide isso porque existem dois caminhos até aqui — o seletor de
+    andamento e o registro de passo — e eles precisam concordar. Quando não
+    concordavam, registrar "Orçamento enviado" enchia a linha do tempo sem mover
+    a régua do cliente: o evento entrava, o status não.
+    """
+    agora = agora_iso()
+    alterou = conn.execute(
+        "UPDATE execucao SET status = ?, atualizado_em = ? WHERE codigo = ?",
+        (status, agora, codigo),
+    ).rowcount
+
+    if alterou == 0:
+        conn.execute(
+            """
+            INSERT INTO execucao (codigo, servico, criado_em, atualizado_em, status)
+            VALUES (?,?,?,?,?)
+            """,
+            (codigo, servico, agora, agora, status),
+        )
+
+
 @router.patch("/admin/execucao/{codigo}/status")
 def alterar_status(
     codigo: str,
@@ -220,20 +244,7 @@ def alterar_status(
         if existe is None:
             raise HTTPException(status_code=404, detail="Triagem não encontrada.")
 
-        alterou = conn.execute(
-            "UPDATE execucao SET status = ?, atualizado_em = ? WHERE codigo = ?",
-            (data.status, agora, codigo),
-        ).rowcount
-
-        if alterou == 0:
-            conn.execute(
-                """
-                INSERT INTO execucao (codigo, servico, criado_em, atualizado_em, status)
-                VALUES (?,?,?,?,?)
-                """,
-                (codigo, data.servico, agora, agora, data.status),
-            )
-
+        _definir_status(conn, codigo, data.servico, data.status)
         registrar_se_novo(conn, codigo, data.status)
         conn.commit()
 
@@ -288,8 +299,24 @@ def criar_evento(data: EventoRequest, x_admin_key: str | None = Header(default=N
             origem="admin",
             visivel_cliente=data.visivel_cliente,
         )
+
+        # Registrar um passo conhecido É mover o atendimento. Sem isto o evento
+        # entrava na linha do tempo e a régua não saía do lugar — dois controles
+        # para a mesma coisa, e o cliente via o caso parado.
+        #
+        # Evento interno e evento de texto livre não movem nada: o primeiro não
+        # é comunicação, o segundo não é etapa.
+        if data.passo in PASSOS and data.visivel_cliente:
+            servico, _ = localizar_por_codigo(conn, data.codigo)
+            if servico is None:
+                raise HTTPException(status_code=404, detail="Triagem não encontrada.")
+            _definir_status(conn, data.codigo, servico, data.passo)
+
         conn.commit()
         return {"ok": True}
+    except HTTPException:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -337,11 +364,10 @@ def salvar_execucao(
     if data.servico not in TABELAS_POR_SERVICO:
         raise HTTPException(status_code=400, detail="Serviço inválido.")
 
-    # Status e passo do histórico são o mesmo vocabulário. Eles nasceram
-    # separados — o painel oferecia pendente/em_andamento/concluido enquanto a
-    # régua do cliente esperava os PASSOS — e o resultado era a régua nunca
-    # avançar: só "concluido" existia nos dois lados. Validar aqui é o que
-    # impede a divergência de voltar em silêncio.
+    # `status` aqui só vale na criação da execução: mudar o andamento é trabalho
+    # do PATCH de status ou do registro de passo, que também escrevem na linha do
+    # tempo. Salvar o atendimento não pode rebobinar a régua do cliente sem
+    # querer. A validação fica porque o valor ainda chega ao banco no INSERT.
     if data.status not in PASSOS:
         raise HTTPException(
             status_code=400,
@@ -368,13 +394,13 @@ def salvar_execucao(
         if existente:
             conn.execute("""
                 UPDATE execucao SET
-                    status = ?, diagnostico = ?, servicos_realizados = ?,
+                    diagnostico = ?, servicos_realizados = ?,
                     recomendacoes = ?, observacoes_internas = ?,
                     itens_json = ?, valor_total = ?, data_atendimento = ?,
                     validade_orcamento = ?, atualizado_em = ?
                 WHERE codigo = ?
             """, (
-                data.status, data.diagnostico, data.servicos_realizados,
+                data.diagnostico, data.servicos_realizados,
                 data.recomendacoes, data.observacoes_internas,
                 itens_json, valor_total, data.data_atendimento,
                 data.validade_orcamento, agora, data.codigo,
@@ -392,12 +418,6 @@ def salvar_execucao(
                 data.observacoes_internas, itens_json, valor_total,
                 data.data_atendimento, data.validade_orcamento,
             ))
-
-        # O status escolhido no painel vira passo na linha do tempo do cliente,
-        # quando corresponde a um passo conhecido. Assim você atualiza o
-        # andamento num lugar só, em vez de manter status e histórico à mão.
-        if data.status in PASSOS:
-            registrar_se_novo(conn, data.codigo, data.status)
 
         conn.commit()
         return {"ok": True, "valor_total": valor_total}

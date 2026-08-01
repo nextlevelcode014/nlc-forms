@@ -40,8 +40,13 @@
       <section class="cartao">
         <div class="cartao__topo">
           <h2 class="cartao__titulo">Andamento</h2>
-          <span class="dica" id="link-acompanhamento"></span>
+          <div class="status-campo">
+            <label class="visualmente-oculto" for="status">Estado atual</label>
+            <select id="status"></select>
+            <span class="status-aviso" id="status-aviso" aria-live="polite"></span>
+          </div>
         </div>
+        <p class="dica" id="link-acompanhamento"></p>
 
         <div class="campo-par">
           <div class="campo">
@@ -75,11 +80,6 @@
       <section class="cartao">
         <div class="cartao__topo">
           <h2 class="cartao__titulo">Execução do atendimento</h2>
-          <div class="status-campo">
-            <label class="visualmente-oculto" for="status">Andamento</label>
-            <select id="status"></select>
-            <span class="status-aviso" id="status-aviso" aria-live="polite"></span>
-          </div>
         </div>
 
         <div class="campo-par">
@@ -592,7 +592,7 @@ Texto do relatório em Markdown..."></textarea>
 
   function preencherExecucao(execucao: Execucao | null) {
     const valores: Record<string, string> = {
-      status: execucao?.status ?? 'concluido',
+      status: execucao?.status ?? 'recebido',
       'data-atendimento': execucao?.data_atendimento ?? '',
       'validade-orcamento': execucao?.validade_orcamento ?? '',
       diagnostico: execucao?.diagnostico ?? '',
@@ -624,8 +624,7 @@ Texto do relatório em Markdown..."></textarea>
         body: {
           codigo: codigoAtual,
           servico: servicoAtual,
-          status: campo('status').value,
-          diagnostico: campo('diagnostico').value,
+              diagnostico: campo('diagnostico').value,
           servicos_realizados: campo('servicos-realizados').value,
           recomendacoes: campo('recomendacoes').value,
           observacoes_internas: campo('observacoes-internas').value,
@@ -969,6 +968,11 @@ Texto do relatório em Markdown..."></textarea>
         },
       });
       campo('evento-detalhe').value = '';
+      // O backend move o andamento junto quando o passo é conhecido; o seletor
+      // de estado tem que refletir isso, senão a tela mente sobre o que gravou.
+      if (passo !== 'manual' && !el<HTMLInputElement>('evento-interno').checked) {
+        el<HTMLSelectElement>('status').value = passo;
+      }
       await recarregarTimeline();
     } catch (erro) {
       avisar('feedback-historico', 'erro', traduzirErro(erro, 'Erro ao registrar'));
