@@ -15,6 +15,20 @@
       "when": 1785592068628,
       "tag": "0001_status_unificado",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785603103492,
+      "tag": "0002_andamento_dinamico",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1785603240919,
+      "tag": "0003_titulos_legiveis",
+      "breakpoints": true
     }
   ]
 }

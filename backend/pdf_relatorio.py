@@ -74,11 +74,6 @@ CAMPOS_TRIAGEM = {
     ],
 }
 
-STATUS_LABEL = {
-    "pendente": "Pendente",
-    "em_andamento": "Em andamento",
-    "concluido": "Concluído",
-}
 
 
 def _fmt_brl(valor: float) -> str:
@@ -304,7 +299,9 @@ def _montar_story(servico: str, triagem: dict, execucao: dict) -> list:
             conteudo_diag.append(Paragraph(_txt(execucao[chave]), styles["corpo"]))
             conteudo_diag.append(Spacer(1, espaco))
 
-    status = STATUS_LABEL.get(execucao.get("status", ""), execucao.get("status", "—"))
+    # Texto livre: o estado vem do último evento do histórico, escrito à mão.
+    # Não há mais um mapa de rótulos porque não há mais lista fixa de etapas.
+    status = execucao.get("estado") or "—"
     rodape_status = f"<b>Status:</b> {escape(str(status))}"
     if execucao.get("data_atendimento"):
         rodape_status += (

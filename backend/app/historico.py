@@ -1,49 +1,38 @@
 """A linha do tempo do atendimento.
 
-No espírito do rastreio dos Correios: cada linha é um evento com hora. Um campo
-`status` sozinho diz onde o caso está, mas não como chegou lá — e é justamente o
-"aguardando a peça" que faz o cliente mandar mensagem perguntando.
+Cada linha é um evento com hora, no espírito do rastreio dos Correios. O que
+mudou em relação à primeira versão: **não existe lista de etapas predefinida**.
 
-Dois tipos de evento convivem: os **passos**, que o código insere sozinho nos
-pontos que já conhece, e os **manuais**, que você escreve quando o caso pede algo
-que nenhum passo cobre.
+A versão anterior trazia sete passos fixos — "aguardando peça", "em execução" e
+companhia — e a página do cliente desenhava todos, marcando os futuros em
+cinza. Isso prometia um caminho que nem sempre existe: um projeto de
+desenvolvimento não espera peça nenhuma, e mostrar essa etapa apagada sugeria
+que ela ainda viria. Pior, engessava o vocabulário de quem atende.
+
+Agora quem escreve as etapas é você, na hora. A fita começa vazia e só ganha
+marcas conforme os eventos acontecem. As sugestões de título vêm do que já foi
+usado antes — aprendidas, não decretadas.
+
+O ESTADO ATUAL NÃO É GUARDADO. Ele é sempre o título do último evento visível.
+Guardar uma cópia em `execucao.status` foi exatamente o que produziu os bugs que
+esta base já teve: um caminho gravava o evento e não o status, e o cliente via o
+atendimento parado enquanto ele andava. Sem cópia não há divergência — e apagar
+um evento faz o estado voltar sozinho para o anterior.
 """
 
 from app.tempo import agora_iso
 
-# Passos pré-definidos. A chave vai no banco; o rótulo é o que o cliente lê.
-#
-# A ordem aqui é a ordem natural do atendimento e serve para a página desenhar o
-# progresso. Passo novo entra no fim desta lista, não no meio: a posição vira
-# percentual na barra, e inserir no meio reescreveria o progresso de todo caso
-# já em andamento.
-PASSOS = {
-    "recebido": "Triagem recebida",
-    "em_analise": "Em análise",
-    "orcamento_enviado": "Orçamento enviado",
-    "aguardando_aprovacao": "Aguardando sua aprovação",
-    "aguardando_peca": "Aguardando peça",
-    "em_execucao": "Em execução",
-    "concluido": "Concluído",
-}
-
-# O que o cliente escreve pela página dele. Fica fora de PASSOS porque não é
-# etapa do atendimento — não avança nada, só registra que ele falou algo.
-PASSO_MENSAGEM = "mensagem_cliente"
-
 ORIGENS = {"sistema", "admin", "cliente"}
 
-
-def rotulo(passo: str) -> str:
-    if passo == PASSO_MENSAGEM:
-        return "Mensagem do cliente"
-    return PASSOS.get(passo, passo)
+# Primeiro evento de toda triagem. É um fato consumado, não uma promessa sobre o
+# que vem depois — por isso pode ser fixo sem cair no problema das etapas.
+EVENTO_INICIAL = "Triagem recebida"
 
 
-def registrar_passo(
+def registrar_evento(
     conn,
     codigo: str,
-    passo: str,
+    titulo: str,
     detalhe: str = "",
     origem: str = "sistema",
     visivel_cliente: bool = True,
@@ -51,41 +40,62 @@ def registrar_passo(
     """Acrescenta um evento. Não commita — quem chama decide a transação."""
     conn.execute(
         """
-        INSERT INTO historico (codigo, passo, detalhe, origem, visivel_cliente, criado_em)
+        INSERT INTO historico (codigo, titulo, detalhe, origem, visivel_cliente, criado_em)
         VALUES (?,?,?,?,?,?)
         """,
-        (codigo, passo, detalhe.strip(), origem, 1 if visivel_cliente else 0, agora_iso()),
+        (codigo, titulo.strip(), detalhe.strip(), origem, 1 if visivel_cliente else 0, agora_iso()),
     )
 
 
-def registrar_se_novo(conn, codigo: str, passo: str, detalhe: str = "") -> bool:
-    """Registra o passo só se ele ainda não existe para este código.
+def estado_atual(conn, codigo: str) -> str | None:
+    """O título do último evento visível — o que o cliente lê como situação.
 
-    Serve aos eventos automáticos, que passam por pontos executados mais de uma
-    vez: salvar o atendimento duas vezes não pode encher a linha do tempo do
-    cliente com "Em análise" repetido.
+    Derivado, nunca guardado. `visivel_cliente = 1` porque uma anotação interna
+    sua não é o estado do atendimento aos olhos de quem espera.
     """
-    existe = conn.execute(
-        "SELECT 1 FROM historico WHERE codigo = ? AND passo = ?", (codigo, passo)
+    linha = conn.execute(
+        """
+        SELECT titulo FROM historico
+         WHERE codigo = ? AND visivel_cliente = 1
+         ORDER BY criado_em DESC, id DESC
+         LIMIT 1
+        """,
+        (codigo,),
     ).fetchone()
-    if existe:
-        return False
-
-    registrar_passo(conn, codigo, passo, detalhe)
-    return True
+    return linha["titulo"] if linha else None
 
 
 def linha_do_tempo(conn, codigo: str, so_visiveis: bool = True) -> list[dict]:
-    """Eventos do mais recente para o mais antigo, já com o rótulo resolvido."""
+    """Eventos do mais recente para o mais antigo."""
     filtro = "AND visivel_cliente = 1" if so_visiveis else ""
     linhas = conn.execute(
         f"""
-        SELECT id, passo, detalhe, origem, visivel_cliente, criado_em
+        SELECT id, titulo, detalhe, origem, visivel_cliente, criado_em
           FROM historico
          WHERE codigo = ? {filtro}
          ORDER BY criado_em DESC, id DESC
         """,
         (codigo,),
     ).fetchall()
+    return [dict(linha) for linha in linhas]
 
-    return [{**dict(l), "rotulo": rotulo(l["passo"])} for l in linhas]
+
+def titulos_usados(conn, limite: int = 30) -> list[str]:
+    """Títulos já usados, do mais frequente para o menos.
+
+    É o que substitui a lista fixa: o painel oferece como sugestão o vocabulário
+    que você mesmo criou. Na segunda vez que escrever "Aguardando peça" ele
+    aparece pronto; se você nunca esperar peça, ele nunca aparece.
+    """
+    linhas = conn.execute(
+        """
+        SELECT titulo, COUNT(*) AS vezes
+          FROM historico
+         WHERE origem = 'admin'
+         GROUP BY titulo
+         ORDER BY vezes DESC, MAX(criado_em) DESC
+         LIMIT ?
+        """,
+        (limite,),
+    ).fetchall()
+    return [linha["titulo"] for linha in linhas]

@@ -110,7 +110,6 @@ class RelatorioMdRequest(BaseModel):
 class SalvarExecucaoRequest(BaseModel):
     codigo: str
     servico: str
-    status: str = "recebido"
     diagnostico: str = ""
     servicos_realizados: str = ""
     recomendacoes: str = ""
@@ -121,20 +120,17 @@ class SalvarExecucaoRequest(BaseModel):
 
 
 class EventoRequest(BaseModel):
-    """Evento escrito por você na linha do tempo do atendimento."""
+    """Evento escrito por você na linha do tempo do atendimento.
+
+    O título é livre — não há lista de etapas. Registrar um evento visível é o
+    que move o estado do atendimento, porque o estado É o último evento.
+    """
 
     codigo: str
-    # Um dos PASSOS ou "manual". O rótulo do passo aparece para o cliente; o
-    # detalhe é o texto livre.
-    passo: str = "manual"
+    titulo: str
     detalhe: str = ""
     # False registra para você sem mostrar ao cliente — útil para anotar algo do
     # caso sem transformar em comunicação.
     visivel_cliente: bool = True
 
 
-class StatusRequest(BaseModel):
-    """Troca só o andamento, sem tocar no resto da execução."""
-
-    servico: str
-    status: str

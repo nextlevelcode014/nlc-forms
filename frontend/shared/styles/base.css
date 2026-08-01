@@ -510,9 +510,10 @@ select option {
   margin-top: 0.5rem;
 }
 
-/* Régua de etapas. Horizontal no desktop, vertical no celular — uma fileira de
-   sete etapas em 390px vira texto de 6px ou rolagem lateral. */
-.regua {
+/* A fita do percurso: uma marca por evento que aconteceu, nunca por etapa
+   futura. Cresce para a direita no desktop e para baixo no celular — uma
+   fileira de marcas em 390px vira texto de 6px ou rolagem lateral. */
+.fita {
   list-style: none;
   display: grid;
   gap: 0.5rem;
@@ -520,28 +521,23 @@ select option {
 }
 
 @media (min-width: 720px) {
-  .regua {
+  .fita {
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
     gap: 0.25rem;
   }
 }
 
-.regua__passo {
+.fita__marca {
   font-size: 12px;
   padding: 0.5rem 0.6rem;
-  border-block-start: 2px solid var(--line);
-  color: var(--text-faint);
-}
-
-.regua__passo--feito {
-  border-block-start-color: var(--accent);
+  border-block-start: 2px solid var(--accent);
   color: var(--text-muted);
 }
 
-/* Laranja marca só a etapa atual: é o acento pontual do guia da marca, e usá-lo
-   em todas as etapas concluídas o esvaziaria de significado. */
-.regua__passo--atual {
+/* Laranja só na marca atual: é o acento pontual do guia da marca, e pintar
+   todo o percurso o esvaziaria de significado. */
+.fita__marca--atual {
   border-block-start-color: var(--hot);
   color: var(--text);
   font-weight: 600;

@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.config import ROTULO_SERVICO
 from app.clientes import atualizar_contato
 from app.database import get_db, localizar_por_codigo
-from app.historico import PASSO_MENSAGEM, PASSOS, linha_do_tempo, registrar_passo, rotulo
+from app.historico import estado_atual, linha_do_tempo, registrar_evento
 from app.models import ContatoRequest, MensagemClienteRequest
 from app.notify import notificar_mensagem_cliente
 from app.ratelimit import check_rate_limit
@@ -54,7 +54,8 @@ def acompanhar(codigo: str):
         # sem entregar o nome completo a quem tropeçar num código anotado.
         primeiro_nome = (triagem["cliente_nome"] or "").split(" ")[0]
 
-        status = execucao["status"] if execucao else "recebido"
+        # Derivado do último evento visível, nunca guardado.
+        estado = estado_atual(conn, codigo)
 
         orcamento = None
         if execucao and (execucao["valor_total"] or 0) > 0:
@@ -69,26 +70,24 @@ def acompanhar(codigo: str):
             "servico_rotulo": ROTULO_SERVICO.get(servico, servico),
             "cliente": primeiro_nome,
             "aberto_em": triagem["criado_em"],
-            "status": status,
-            "status_rotulo": rotulo(status),
+            "estado": estado,
             "orcamento": orcamento,
             # Curado, não repassado: `linha_do_tempo` traz `id` e
             # `visivel_cliente`, que são controle interno. Repassar o dicionário
             # inteiro é como esta rota nasceu errada da primeira vez.
+            #
+            # Não existe lista de etapas futuras: a fita da página é montada a
+            # partir do que de fato aconteceu. Mostrar etapas em cinza prometia
+            # um caminho que nem todo atendimento percorre.
             "historico": [
                 {
-                    "passo": e["passo"],
-                    "rotulo": e["rotulo"],
+                    "titulo": e["titulo"],
                     "detalhe": e["detalhe"],
                     "origem": e["origem"],
                     "criado_em": e["criado_em"],
                 }
                 for e in linha_do_tempo(conn, codigo)
             ],
-            # A ordem dos passos vem daqui para a página não manter a própria
-            # cópia da lista — uma etapa nova passa a aparecer sem tocar no
-            # frontend.
-            "passos": [{"passo": p, "rotulo": r} for p, r in PASSOS.items()],
         }
     finally:
         conn.close()
@@ -138,7 +137,7 @@ def mensagem_do_cliente(codigo: str, data: MensagemClienteRequest):
     conn = get_db()
     try:
         _, triagem = _exigir_triagem(conn, codigo)
-        registrar_passo(conn, codigo, PASSO_MENSAGEM, mensagem, origem="cliente")
+        registrar_evento(conn, codigo, "Mensagem enviada", mensagem, origem="cliente")
         conn.commit()
         nome = triagem["cliente_nome"]
     except HTTPException:

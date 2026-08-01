@@ -164,7 +164,10 @@ export const execucao = sqliteTable(
     servico: text().notNull(),
     criado_em: agora(),
     atualizado_em: text(),
-    status: text().notNull().default('recebido'),
+    // `status` saiu daqui: o estado é sempre o título do último evento visível
+    // do histórico. Guardar uma cópia foi o que fez a régua do cliente ficar
+    // parada enquanto o atendimento andava — um caminho gravava o evento e não
+    // o status. Derivado não diverge, e apagar um evento devolve o anterior.
     diagnostico: text().default(''),
     servicos_realizados: text().default(''),
     recomendacoes: text().default(''),
@@ -192,9 +195,11 @@ export const historico = sqliteTable(
   {
     id: integer().primaryKey({ autoIncrement: true }),
     codigo: text().notNull(),
-    // Passo pré-definido (ver PASSOS em app/historico.py) ou 'manual'.
-    passo: text().notNull(),
-    // Texto mostrado ao cliente. Vazio faz a página usar o rótulo do passo.
+    // Escrito por você, na hora. Não há lista de etapas predefinida: a fita da
+    // página do cliente começa vazia e só ganha marcas conforme os eventos
+    // acontecem. Sugestões de título vêm do que já foi usado (titulos_usados).
+    titulo: text().notNull(),
+    // Complemento opcional, mostrado abaixo do título.
     detalhe: text().default(''),
     // 'sistema' | 'admin' | 'cliente' — a página distingue o que veio de você
     // do que o próprio cliente escreveu.

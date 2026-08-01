@@ -42,9 +42,11 @@ import Base from '../layouts/Base.astro';
       </p>
     </div>
 
-    <!-- Régua de etapas. A lista vem da API para uma etapa nova aparecer aqui
-         sem alterar esta página. -->
-    <ol class="regua" id="regua"></ol>
+    <!-- A fita do que já aconteceu. Não há etapas futuras em cinza: elas
+         prometiam um caminho que nem todo atendimento percorre, e a marca
+         "aguardando peça" apagada num projeto de site não fazia sentido
+         nenhum. Começa vazia e ganha uma marca por evento. -->
+    <ol class="fita" id="fita"></ol>
 
     <section class="cartao" id="bloco-orcamento" hidden>
       <span class="cartao__rotulo">Orçamento</span>
@@ -102,7 +104,6 @@ import Base from '../layouts/Base.astro';
     atualizarContato,
     buscarAcompanhamento,
     enviarMensagem,
-    posicaoDoPasso,
     type Acompanhamento,
     type EventoPublico,
   } from '@nlc/shared/lib/acompanhar';
@@ -150,12 +151,12 @@ import Base from '../layouts/Base.astro';
 
   function desenhar(d: Acompanhamento) {
     el('ola').textContent = d.cliente ? `Olá, ${d.cliente}` : 'Olá';
-    el('status-atual').textContent = d.status_rotulo.toLowerCase();
+    el('status-atual').textContent = (d.estado ?? 'triagem recebida').toLowerCase();
     el('codigo-atual').textContent = d.codigo;
     el('servico').textContent = d.servico_rotulo;
     el('aberto-em').textContent = new Date(d.aberto_em).toLocaleDateString('pt-BR');
 
-    desenharRegua(d);
+    desenharFita(d);
 
     const temOrcamento = d.orcamento !== null;
     el('bloco-orcamento').hidden = !temOrcamento;
@@ -172,18 +173,23 @@ import Base from '../layouts/Base.astro';
     el('linha-tempo').replaceChildren(...d.historico.map(evento));
   }
 
-  function desenharRegua(d: Acompanhamento) {
-    const atual = posicaoDoPasso(d);
+  /**
+   * A fita do percurso: uma marca por evento visível, do primeiro ao último.
+   *
+   * O histórico vem do mais recente para o mais antigo porque é assim que se lê
+   * uma conversa; a fita é o contrário, porque é assim que se lê um percurso.
+   * Mensagens do cliente ficam de fora — elas são recado, não etapa do trabalho.
+   */
+  function desenharFita(d: Acompanhamento) {
+    const etapas = [...d.historico].reverse().filter((e) => e.origem !== 'cliente');
 
-    el('regua').replaceChildren(
-      ...d.passos.map((p, i) => {
+    el('fita').replaceChildren(
+      ...etapas.map((e, i) => {
         const li = document.createElement('li');
-        // -1 é status fora da régua: nada fica marcado, em vez de a barra
-        // voltar ao começo e sugerir que o atendimento regrediu.
-        const estado = atual < 0 ? 'pendente' : i < atual ? 'feito' : i === atual ? 'atual' : 'pendente';
-        li.className = `regua__passo regua__passo--${estado}`;
-        li.textContent = p.rotulo;
-        if (i === atual) li.setAttribute('aria-current', 'step');
+        const atual = i === etapas.length - 1;
+        li.className = `fita__marca${atual ? ' fita__marca--atual' : ''}`;
+        li.textContent = e.titulo;
+        if (atual) li.setAttribute('aria-current', 'step');
         return li;
       }),
     );
@@ -199,7 +205,7 @@ import Base from '../layouts/Base.astro';
 
     const rotulo = document.createElement('span');
     rotulo.className = 'evento__rotulo';
-    rotulo.textContent = e.origem === 'cliente' ? 'Você escreveu' : e.rotulo;
+    rotulo.textContent = e.origem === 'cliente' ? 'Você escreveu' : e.titulo;
 
     const quando = document.createElement('time');
     quando.className = 'evento__quando';

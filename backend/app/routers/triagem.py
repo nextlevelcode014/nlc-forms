@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from app.clientes import atualizar_contato, exigir_cliente
-from app.historico import registrar_passo
+from app.historico import EVENTO_INICIAL, registrar_evento
 from app.models import TriagemSuporte, TriagemSeguranca, TriagemDesenvolvimento
 from app.auth import validar_token, consumir_token, gerar_codigo_consulta
 from app.database import get_db, TABELAS_POR_SERVICO
@@ -51,7 +51,7 @@ def _registrar_triagem(servico: str, token: str, data: BaseModel) -> dict:
         # informação mais recente que o cliente deu sobre si.
         atualizar_contato(conn, cliente["id"], contato["nome"], contato["telefone"])
 
-        registrar_passo(conn, codigo, "recebido")
+        registrar_evento(conn, codigo, EVENTO_INICIAL)
         consumir_token(conn, token)
         conn.commit()
     except HTTPException:

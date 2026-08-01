@@ -1,7 +1,7 @@
 ---
-// As opções são preenchidas em runtime a partir de /admin/passos: status e
-// passo do histórico são o mesmo vocabulário, e mantê-lo aqui em paralelo foi
-// o que fez a régua do cliente nunca avançar.
+// Não há lista de etapas: o estado do atendimento é o título do último evento
+// visível, escrito à mão. As sugestões vêm de /admin/titulos — o que você já
+// usou antes, não um vocabulário decretado.
 ---
 
 <div id="detalhe" hidden>
@@ -40,22 +40,22 @@
       <section class="cartao">
         <div class="cartao__topo">
           <h2 class="cartao__titulo">Andamento</h2>
-          <div class="status-campo">
-            <label class="visualmente-oculto" for="status">Estado atual</label>
-            <select id="status"></select>
-            <span class="status-aviso" id="status-aviso" aria-live="polite"></span>
-          </div>
+          <span class="estado-atual" id="estado-atual"></span>
         </div>
         <p class="dica" id="link-acompanhamento"></p>
 
         <div class="campo-par">
           <div class="campo">
-            <label for="evento-passo">Passo</label>
-            <select id="evento-passo"></select>
+            <label for="evento-titulo">O que aconteceu <span class="dica">(vira o estado)</span></label>
+            <!-- Campo livre com sugestões do que você já usou, não uma lista
+                 fixa: "aguardando peça" não existe num projeto de site. -->
+            <input type="text" id="evento-titulo" list="titulos-usados" autocomplete="off"
+                   placeholder="Ex: Aguardando peça" />
+            <datalist id="titulos-usados"></datalist>
           </div>
           <div class="campo">
             <label for="evento-detalhe">
-              Detalhe <span class="dica">(o cliente lê)</span>
+              Detalhe <span class="dica">(opcional, o cliente lê)</span>
             </label>
             <input type="text" id="evento-detalhe" placeholder="Ex: cooler encomendado, chega quinta" />
           </div>
@@ -279,7 +279,7 @@ Texto do relatório em Markdown..."></textarea>
 <script>
   import { api, baixarPdf, ErroApi } from '@nlc/shared/lib/api';
   import { chaveAtual, traduzirErro } from '@nlc/shared/lib/admin';
-  import { carregarPassos } from '@nlc/shared/lib/passos';
+  import { carregarTitulos, esquecerTitulos } from '@nlc/shared/lib/titulos';
   import { ROTULO_SERVICO, RESUMO_ADMIN, type Servico } from '@nlc/shared/lib/triagem';
 
   interface Item {
@@ -302,8 +302,7 @@ Texto do relatório em Markdown..."></textarea>
 
   interface Evento {
     id: number;
-    passo: string;
-    rotulo: string;
+    titulo: string;
     detalhe: string;
     origem: 'sistema' | 'admin' | 'cliente';
     visivel_cliente: number;
@@ -592,7 +591,6 @@ Texto do relatório em Markdown..."></textarea>
 
   function preencherExecucao(execucao: Execucao | null) {
     const valores: Record<string, string> = {
-      status: execucao?.status ?? 'recebido',
       'data-atendimento': execucao?.data_atendimento ?? '',
       'validade-orcamento': execucao?.validade_orcamento ?? '',
       diagnostico: execucao?.diagnostico ?? '',
@@ -887,31 +885,34 @@ Texto do relatório em Markdown..."></textarea>
 
   // ── Linha do tempo ──────────────────────────────────────────
 
-  /** Preenche os dois seletores que falam de passo: o do evento e o do status. */
-  async function preencherPassos() {
-    const doEvento = el<HTMLSelectElement>('evento-passo');
-    const doStatus = el<HTMLSelectElement>('status');
-    if (doEvento.options.length > 0) return;
-
+  /** Sugestões do que você já escreveu antes. Atalho, não vocabulário fechado. */
+  async function preencherSugestoes() {
     try {
-      const passos = await carregarPassos(chaveAtual());
-      for (const p of passos) {
-        doEvento.append(new Option(p.rotulo, p.passo));
-        doStatus.append(new Option(p.rotulo, p.passo));
-      }
-      doEvento.append(new Option('Outro (escrever)', 'manual'));
+      const titulos = await carregarTitulos(chaveAtual());
+      el('titulos-usados').replaceChildren(
+        ...titulos.map((t) => {
+          const opcao = document.createElement('option');
+          opcao.value = t;
+          return opcao;
+        }),
+      );
     } catch {
-      // Sem a lista o campo de texto livre ainda funciona.
-      doEvento.append(new Option('Outro (escrever)', 'manual'));
+      // Sem sugestões o campo continua aceitando texto livre.
     }
   }
 
   function desenharTimeline(eventos: Evento[]) {
     el('timeline').replaceChildren(...eventos.map(itemEvento));
+
+    // O estado é derivado: o último evento visível. Sem cópia guardada, não há
+    // como a tela e a página do cliente discordarem.
+    const visivel = eventos.find((e) => e.visivel_cliente);
+    el('estado-atual').textContent = visivel ? visivel.titulo : '—';
+
     el('link-acompanhamento').textContent = codigoAtual
       ? `o cliente acompanha por ${codigoAtual}`
       : '';
-    preencherPassos();
+    preencherSugestoes();
   }
 
   function itemEvento(e: Evento): HTMLLIElement {
@@ -923,7 +924,7 @@ Texto do relatório em Markdown..."></textarea>
 
     const rotulo = document.createElement('span');
     rotulo.className = 'timeline__rotulo';
-    rotulo.textContent = e.rotulo;
+    rotulo.textContent = e.titulo;
 
     const quando = document.createElement('span');
     quando.className = 'timeline__quando';
@@ -953,8 +954,11 @@ Texto do relatório em Markdown..."></textarea>
   async function registrarEvento() {
     if (!codigoAtual) return;
 
-    const passo = el<HTMLSelectElement>('evento-passo').value;
-    const detalhe = campo('evento-detalhe').value.trim();
+    const titulo = campo('evento-titulo').value.trim();
+    if (!titulo) {
+      avisar('feedback-historico', 'erro', 'Escreva o que aconteceu.');
+      return;
+    }
 
     try {
       await api('/admin/historico', {
@@ -962,17 +966,15 @@ Texto do relatório em Markdown..."></textarea>
         adminKey: chaveAtual(),
         body: {
           codigo: codigoAtual,
-          passo,
-          detalhe,
+          titulo,
+          detalhe: campo('evento-detalhe').value.trim(),
           visivel_cliente: !el<HTMLInputElement>('evento-interno').checked,
         },
       });
+      campo('evento-titulo').value = '';
       campo('evento-detalhe').value = '';
-      // O backend move o andamento junto quando o passo é conhecido; o seletor
-      // de estado tem que refletir isso, senão a tela mente sobre o que gravou.
-      if (passo !== 'manual' && !el<HTMLInputElement>('evento-interno').checked) {
-        el<HTMLSelectElement>('status').value = passo;
-      }
+      // Título novo precisa entrar nas sugestões da próxima vez.
+      esquecerTitulos();
       await recarregarTimeline();
     } catch (erro) {
       avisar('feedback-historico', 'erro', traduzirErro(erro, 'Erro ao registrar'));
@@ -1001,39 +1003,6 @@ Texto do relatório em Markdown..."></textarea>
 
   el('btn-add-evento').addEventListener('click', registrarEvento);
 
-  /**
-   * O seletor de andamento salva sozinho.
-   *
-   * Ele fica no topo do cartão e o "Salvar atendimento" no fim de um formulário
-   * longo — mudar o seletor e nada acontecer parecia a régua do cliente estar
-   * quebrada, quando na verdade a gravação nunca tinha sido pedida. Como este
-   * campo controla o que o cliente vê, ele merece valer no ato.
-   *
-   * Vai por PATCH e não pelo POST da execução: aquele grava tudo, e daria para
-   * apagar diagnóstico e orçamento sem querer ao mexer num seletor.
-   */
-  async function salvarStatus() {
-    if (!codigoAtual || !servicoAtual) return;
-
-    const aviso = el('status-aviso');
-    aviso.textContent = 'salvando...';
-
-    try {
-      await api(`/admin/execucao/${encodeURIComponent(codigoAtual)}/status`, {
-        method: 'PATCH',
-        adminKey: chaveAtual(),
-        body: { servico: servicoAtual, status: el<HTMLSelectElement>('status').value },
-      });
-      aviso.textContent = 'salvo';
-      await recarregarTimeline();
-      setTimeout(() => (aviso.textContent = ''), 2500);
-    } catch (erro) {
-      aviso.textContent = '';
-      avisar('feedback-exec', 'erro', traduzirErro(erro, 'Erro ao mudar o andamento'));
-    }
-  }
-
-  el('status').addEventListener('change', salvarStatus);
 
   // A lista dispara isto ao clicar em "abrir" — e também quando a URL traz
   // ?codigo=&servico=, que é o link do e-mail de nova triagem.

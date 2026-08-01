@@ -25,7 +25,12 @@ def _triagens_do_cliente(conn, cliente_id: int) -> list[dict]:
         linhas = conn.execute(
             f"""
             SELECT t.codigo, t.criado_em,
-                   e.status, e.valor_total, e.data_atendimento
+                   e.valor_total, e.data_atendimento,
+                   -- Estado derivado do último evento visível, como no resto do
+                   -- sistema: não há coluna `status` para divergir.
+                   (SELECT h.titulo FROM historico h
+                     WHERE h.codigo = t.codigo AND h.visivel_cliente = 1
+                     ORDER BY h.criado_em DESC, h.id DESC LIMIT 1) AS estado
               FROM {tabela} t
               LEFT JOIN execucao e ON e.codigo = t.codigo
              WHERE t.cliente_id = ?

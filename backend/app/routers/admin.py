@@ -9,15 +9,13 @@ from app.database import get_db, localizar_por_codigo, TABELAS_POR_SERVICO
 from app.auth import checar_admin, gerar_token
 from app.clientes import exigir_cliente
 from app.historico import (
-    PASSO_MENSAGEM,
-    PASSOS,
+    estado_atual,
     linha_do_tempo,
-    registrar_passo,
-    registrar_se_novo,
+    registrar_evento,
+    titulos_usados,
 )
 from app.models import (
     EventoRequest,
-    StatusRequest,
     GerarTokenRequest,
     RelatorioMdRequest,
     SalvarExecucaoRequest,
@@ -29,6 +27,17 @@ from app.notify import enviar_pdf_cliente
 from app.tempo import agora as agora_utc, agora_iso, data_local
 
 router = APIRouter(tags=["admin"], dependencies=[Depends(check_rate_limit)])
+
+# O estado do atendimento é derivado, nunca guardado: é o título do último evento
+# visível. Guardar uma cópia em `execucao.status` foi o que fez a régua do cliente
+# ficar parada enquanto o caso andava — um caminho gravava o evento e não o
+# status. Como subconsulta, a lista e a página do cliente leem sempre a mesma
+# coisa, e apagar um evento devolve o estado anterior sozinho.
+ESTADO_ATUAL = (
+    "(SELECT h.titulo FROM historico h "
+    "WHERE h.codigo = t.codigo AND h.visivel_cliente = 1 "
+    "ORDER BY h.criado_em DESC, h.id DESC LIMIT 1)"
+)
 
 
 def _triagem_com_cliente(conn, servico: str, codigo: str) -> dict | None:
@@ -117,6 +126,7 @@ def buscar_triagem_para_painel(
         if execucao:
             execucao_dict = dict(execucao)
             execucao_dict["itens"] = json.loads(execucao_dict["itens_json"] or "[]")
+            execucao_dict["estado"] = estado_atual(conn, codigo)
 
         return {
             "triagem": triagem,
@@ -182,136 +192,49 @@ def excluir_triagem(
         conn.close()
 
 
-def _definir_status(conn, codigo: str, servico: str, status: str) -> None:
-    """Move o andamento, criando a execução se ela ainda não existir.
+@router.get("/admin/titulos")
+def listar_titulos(x_admin_key: str | None = Header(default=None)):
+    """Sugestões de título para o próximo evento.
 
-    Um só lugar decide isso porque existem dois caminhos até aqui — o seletor de
-    andamento e o registro de passo — e eles precisam concordar. Quando não
-    concordavam, registrar "Orçamento enviado" enchia a linha do tempo sem mover
-    a régua do cliente: o evento entrava, o status não.
-    """
-    agora = agora_iso()
-    alterou = conn.execute(
-        "UPDATE execucao SET status = ?, atualizado_em = ? WHERE codigo = ?",
-        (status, agora, codigo),
-    ).rowcount
-
-    if alterou == 0:
-        conn.execute(
-            """
-            INSERT INTO execucao (codigo, servico, criado_em, atualizado_em, status)
-            VALUES (?,?,?,?,?)
-            """,
-            (codigo, servico, agora, agora, status),
-        )
-
-
-@router.patch("/admin/execucao/{codigo}/status")
-def alterar_status(
-    codigo: str,
-    data: StatusRequest,
-    x_admin_key: str | None = Header(default=None),
-):
-    """Muda só o andamento.
-
-    Existe separado do POST /admin/execucao porque aquele grava a execução
-    inteira: mandar só o status por lá apagaria diagnóstico, recomendações e
-    itens do orçamento. Aqui o seletor do painel pode salvar sozinho, no
-    `change` — que é o que o operador espera de um seletor que controla o que o
-    cliente vê, e a ausência disso fazia a régua parecer quebrada.
-
-    Cria a execução se ela ainda não existir: dá para marcar "em análise" antes
-    de preencher qualquer coisa do atendimento.
+    Não é uma lista de etapas: é o vocabulário que você mesmo criou, ordenado
+    pelo que mais usou. Na segunda vez que escrever "Aguardando peça" ela vem
+    pronta; se você nunca esperar peça, ela nunca aparece.
     """
     checar_admin(x_admin_key)
-
-    if data.servico not in TABELAS_POR_SERVICO:
-        raise HTTPException(status_code=400, detail="Serviço inválido.")
-    if data.status not in PASSOS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Status inválido. Use um de: {', '.join(PASSOS)}",
-        )
-
-    tabela = TABELAS_POR_SERVICO[data.servico]
-    agora = agora_iso()
-
     conn = get_db()
     try:
-        existe = conn.execute(
-            f"SELECT 1 FROM {tabela} WHERE codigo = ?", (codigo,)
-        ).fetchone()
-        if existe is None:
-            raise HTTPException(status_code=404, detail="Triagem não encontrada.")
-
-        _definir_status(conn, codigo, data.servico, data.status)
-        registrar_se_novo(conn, codigo, data.status)
-        conn.commit()
-
-        return {"ok": True, "status": data.status}
-    except HTTPException:
-        conn.rollback()
-        raise
+        return {"titulos": titulos_usados(conn)}
     finally:
         conn.close()
-
-
-@router.get("/admin/passos")
-def listar_passos(x_admin_key: str | None = Header(default=None)):
-    """Os passos pré-definidos, na ordem do atendimento.
-
-    O painel lê daqui em vez de manter a própria lista — passo novo em
-    app/historico.py aparece no seletor sem tocar no frontend.
-    """
-    checar_admin(x_admin_key)
-    return {"passos": [{"passo": p, "rotulo": r} for p, r in PASSOS.items()]}
 
 
 @router.post("/admin/historico", status_code=201)
 def criar_evento(data: EventoRequest, x_admin_key: str | None = Header(default=None)):
     """Acrescenta um evento à linha do tempo.
 
-    Aceita um passo pré-definido ou texto livre. `mensagem_cliente` é recusado de
-    propósito: ele identifica o que o CLIENTE escreveu, e deixar o painel forjar
-    esse tipo tornaria a origem do recado indistinguível na tela dele.
+    O título é livre. Registrar um evento visível já É mover o atendimento: o
+    estado do caso é sempre o título do último evento visível, então não existe
+    um segundo lugar para atualizar — nem como os dois divergirem.
     """
     checar_admin(x_admin_key)
 
-    if data.passo == PASSO_MENSAGEM:
-        raise HTTPException(
-            status_code=400,
-            detail="Este tipo é reservado às mensagens do cliente.",
-        )
-    if data.passo not in PASSOS and data.passo != "manual":
-        raise HTTPException(status_code=400, detail="Passo desconhecido.")
-    if data.passo == "manual" and not data.detalhe.strip():
-        raise HTTPException(
-            status_code=400, detail="Evento manual precisa de uma descrição."
-        )
+    if not data.titulo.strip():
+        raise HTTPException(status_code=400, detail="Escreva o que aconteceu.")
 
     conn = get_db()
     try:
-        registrar_passo(
+        servico, _ = localizar_por_codigo(conn, data.codigo)
+        if servico is None:
+            raise HTTPException(status_code=404, detail="Triagem não encontrada.")
+
+        registrar_evento(
             conn,
             data.codigo,
-            data.passo,
+            data.titulo,
             data.detalhe,
             origem="admin",
             visivel_cliente=data.visivel_cliente,
         )
-
-        # Registrar um passo conhecido É mover o atendimento. Sem isto o evento
-        # entrava na linha do tempo e a régua não saía do lugar — dois controles
-        # para a mesma coisa, e o cliente via o caso parado.
-        #
-        # Evento interno e evento de texto livre não movem nada: o primeiro não
-        # é comunicação, o segundo não é etapa.
-        if data.passo in PASSOS and data.visivel_cliente:
-            servico, _ = localizar_por_codigo(conn, data.codigo)
-            if servico is None:
-                raise HTTPException(status_code=404, detail="Triagem não encontrada.")
-            _definir_status(conn, data.codigo, servico, data.passo)
-
         conn.commit()
         return {"ok": True}
     except HTTPException:
@@ -364,16 +287,6 @@ def salvar_execucao(
     if data.servico not in TABELAS_POR_SERVICO:
         raise HTTPException(status_code=400, detail="Serviço inválido.")
 
-    # `status` aqui só vale na criação da execução: mudar o andamento é trabalho
-    # do PATCH de status ou do registro de passo, que também escrevem na linha do
-    # tempo. Salvar o atendimento não pode rebobinar a régua do cliente sem
-    # querer. A validação fica porque o valor ainda chega ao banco no INSERT.
-    if data.status not in PASSOS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Status inválido. Use um de: {', '.join(PASSOS)}",
-        )
-
     conn = get_db()
     try:
         tabela = TABELAS_POR_SERVICO[data.servico]
@@ -408,12 +321,12 @@ def salvar_execucao(
         else:
             conn.execute("""
                 INSERT INTO execucao
-                (codigo, servico, criado_em, atualizado_em, status, diagnostico,
+                (codigo, servico, criado_em, atualizado_em, diagnostico,
                  servicos_realizados, recomendacoes, observacoes_internas,
                  itens_json, valor_total, data_atendimento, validade_orcamento)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
             """, (
-                data.codigo, data.servico, agora, agora, data.status,
+                data.codigo, data.servico, agora, agora,
                 data.diagnostico, data.servicos_realizados, data.recomendacoes,
                 data.observacoes_internas, itens_json, valor_total,
                 data.data_atendimento, data.validade_orcamento,
@@ -470,7 +383,7 @@ def listar_triagens(
             params.extend([like, like, like])
 
         if status:
-            where_clauses.append("e.status = ?")
+            where_clauses.append(f"{ESTADO_ATUAL} = ?")
             params.append(status)
 
         where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
@@ -484,7 +397,8 @@ def listar_triagens(
 
         offset = (page - 1) * per_page
         data_sql = f"""
-            SELECT t.*, e.status, e.valor_total, e.data_atendimento
+            SELECT t.*, e.valor_total, e.data_atendimento,
+                   {ESTADO_ATUAL} AS estado
             FROM ({subconsulta}) t
             LEFT JOIN execucao e ON e.codigo = t.codigo
             {where_sql}
@@ -533,14 +447,21 @@ def gerar_relatorio_pdf(
             "UPDATE execucao SET pdf_gerado_em = ? WHERE codigo = ?",
             (agora_iso(), codigo),
         )
-        # Gerar o orçamento é um passo que o cliente entende; entra sozinho na
-        # linha do tempo dele. `registrar_se_novo` evita repetir a cada download.
-        registrar_se_novo(conn, codigo, "orcamento_enviado")
+        # Gerar o orçamento é um fato que o cliente entende, então entra sozinho
+        # na linha do tempo. Só na primeira vez: baixar o PDF de novo não é um
+        # acontecimento novo para quem espera.
+        ja_registrado = conn.execute(
+            "SELECT 1 FROM historico WHERE codigo = ? AND titulo = ?",
+            (codigo, "Orçamento enviado"),
+        ).fetchone()
+        if not ja_registrado:
+            registrar_evento(conn, codigo, "Orçamento enviado")
         conn.commit()
 
         triagem_dict = triagem
         execucao_dict = dict(execucao)
         execucao_dict["itens"] = json.loads(execucao_dict["itens_json"] or "[]")
+        execucao_dict["estado"] = estado_atual(conn, codigo)
 
         pdf_buffer = montar_pdf_relatorio(servico, triagem_dict, execucao_dict)
 
@@ -581,6 +502,7 @@ def enviar_pdf_cliente_endpoint(
         triagem_dict = triagem
         execucao_dict = dict(execucao)
         execucao_dict["itens"] = json.loads(execucao_dict["itens_json"] or "[]")
+        execucao_dict["estado"] = estado_atual(conn, codigo)
 
         pdf_buffer = montar_pdf_relatorio(servico, triagem_dict, execucao_dict)
         pdf_bytes = pdf_buffer.getvalue()
