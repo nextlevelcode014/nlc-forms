@@ -841,3 +841,81 @@ class TestVocabularioUnico:
         posicao = [p["passo"] for p in dados["passos"]].index(dados["status"])
         assert posicao > 0, "a régua ficaria no começo"
         assert "aguardando_peca" in [e["passo"] for e in dados["historico"]]
+
+
+class TestStatusAvulso:
+    """O seletor de andamento grava sozinho, sem passar pela execução inteira."""
+
+    def _abrir(self):
+        token = criar_token("suporte")
+        return client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA).json()["codigo"]
+
+    def test_muda_o_status_e_registra_o_passo(self):
+        codigo = self._abrir()
+        r = client.patch(
+            f"/admin/execucao/{codigo}/status",
+            json={"servico": "suporte", "status": "em_execucao"},
+            headers=JSON_ADMIN,
+        )
+        assert r.status_code == 200
+        dados = client.get(f"/acompanhar/{codigo}").json()
+        assert dados["status"] == "em_execucao"
+        assert "em_execucao" in [e["passo"] for e in dados["historico"]]
+
+    def test_nao_apaga_o_resto_da_execucao(self):
+        """O POST grava tudo; mandar só o status por lá zeraria diagnóstico e itens."""
+        codigo = self._abrir()
+        client.post(
+            "/admin/execucao",
+            json={
+                "codigo": codigo, "servico": "suporte", "status": "em_execucao",
+                "diagnostico": "Pasta térmica ressecada",
+                "itens": [{"nome": "Limpeza", "quantidade": 1, "valor_unitario": 150.0}],
+            },
+            headers=JSON_ADMIN,
+        )
+
+        client.patch(
+            f"/admin/execucao/{codigo}/status",
+            json={"servico": "suporte", "status": "concluido"},
+            headers=JSON_ADMIN,
+        )
+
+        painel = client.get(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN).json()
+        assert painel["execucao"]["status"] == "concluido"
+        assert painel["execucao"]["diagnostico"] == "Pasta térmica ressecada"
+        assert painel["execucao"]["valor_total"] == 150.0
+
+    def test_cria_a_execucao_se_ainda_nao_existe(self):
+        """Dá para marcar "em análise" antes de preencher o atendimento."""
+        codigo = self._abrir()
+        r = client.patch(
+            f"/admin/execucao/{codigo}/status",
+            json={"servico": "suporte", "status": "em_analise"},
+            headers=JSON_ADMIN,
+        )
+        assert r.status_code == 200
+        assert client.get(f"/acompanhar/{codigo}").json()["status"] == "em_analise"
+
+    def test_status_invalido_recusa(self):
+        codigo = self._abrir()
+        r = client.patch(
+            f"/admin/execucao/{codigo}/status",
+            json={"servico": "suporte", "status": "em_andamento"},
+            headers=JSON_ADMIN,
+        )
+        assert r.status_code == 400
+
+    def test_codigo_inexistente_404(self):
+        r = client.patch(
+            "/admin/execucao/NLC-0000-0000/status",
+            json={"servico": "suporte", "status": "concluido"},
+            headers=JSON_ADMIN,
+        )
+        assert r.status_code == 404
+
+    def test_exige_chave(self):
+        codigo = self._abrir()
+        assert client.patch(
+            f"/admin/execucao/{codigo}/status", json={"servico": "suporte", "status": "concluido"}
+        ).status_code == 401

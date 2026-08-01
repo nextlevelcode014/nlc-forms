@@ -75,7 +75,11 @@
       <section class="cartao">
         <div class="cartao__topo">
           <h2 class="cartao__titulo">Execução do atendimento</h2>
-          <select id="status"></select>
+          <div class="status-campo">
+            <label class="visualmente-oculto" for="status">Andamento</label>
+            <select id="status"></select>
+            <span class="status-aviso" id="status-aviso" aria-live="polite"></span>
+          </div>
         </div>
 
         <div class="campo-par">
@@ -992,6 +996,40 @@ Texto do relatório em Markdown..."></textarea>
   }
 
   el('btn-add-evento').addEventListener('click', registrarEvento);
+
+  /**
+   * O seletor de andamento salva sozinho.
+   *
+   * Ele fica no topo do cartão e o "Salvar atendimento" no fim de um formulário
+   * longo — mudar o seletor e nada acontecer parecia a régua do cliente estar
+   * quebrada, quando na verdade a gravação nunca tinha sido pedida. Como este
+   * campo controla o que o cliente vê, ele merece valer no ato.
+   *
+   * Vai por PATCH e não pelo POST da execução: aquele grava tudo, e daria para
+   * apagar diagnóstico e orçamento sem querer ao mexer num seletor.
+   */
+  async function salvarStatus() {
+    if (!codigoAtual || !servicoAtual) return;
+
+    const aviso = el('status-aviso');
+    aviso.textContent = 'salvando...';
+
+    try {
+      await api(`/admin/execucao/${encodeURIComponent(codigoAtual)}/status`, {
+        method: 'PATCH',
+        adminKey: chaveAtual(),
+        body: { servico: servicoAtual, status: el<HTMLSelectElement>('status').value },
+      });
+      aviso.textContent = 'salvo';
+      await recarregarTimeline();
+      setTimeout(() => (aviso.textContent = ''), 2500);
+    } catch (erro) {
+      aviso.textContent = '';
+      avisar('feedback-exec', 'erro', traduzirErro(erro, 'Erro ao mudar o andamento'));
+    }
+  }
+
+  el('status').addEventListener('change', salvarStatus);
 
   // A lista dispara isto ao clicar em "abrir" — e também quando a URL traz
   // ?codigo=&servico=, que é o link do e-mail de nova triagem.

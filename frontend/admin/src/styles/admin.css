@@ -638,3 +638,28 @@ tbody tr:hover {
   color: var(--hot);
   background: var(--hot-quiet);
 }
+
+/* ── Seletor de andamento ─────────────────────────────────── */
+
+.status-campo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* O seletor grava no `change`; o aviso é a prova disso. Sem ele a gravação
+   silenciosa é tão confusa quanto a ausência dela. */
+.status-aviso {
+  font-size: 12px;
+  color: var(--ok);
+  min-inline-size: 4.5rem;
+}
+
+.visualmente-oculto {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

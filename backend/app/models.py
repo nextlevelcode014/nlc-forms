@@ -131,3 +131,10 @@ class EventoRequest(BaseModel):
     # False registra para você sem mostrar ao cliente — útil para anotar algo do
     # caso sem transformar em comunicação.
     visivel_cliente: bool = True
+
+
+class StatusRequest(BaseModel):
+    """Troca só o andamento, sem tocar no resto da execução."""
+
+    servico: str
+    status: str

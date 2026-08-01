@@ -21,7 +21,15 @@ app = FastAPI(title="NextLevelCode Forms API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    # Os métodos que o painel de fato usa. A lista estava em GET/POST/OPTIONS
+    # desde a modularização (e5a3739), enquanto o frontend já chamava PUT e
+    # DELETE — o navegador barrava no preflight e a ação simplesmente não
+    # acontecia, sem erro visível na tela. Apagar triagem, apagar e editar
+    # relatório e trocar o andamento estavam todos nesse caso.
+    #
+    # Lista explícita em vez de "*": o CORS aqui é o que separa o painel do
+    # resto da internet, e um curinga tira a chance de notar um método novo.
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     allow_credentials=False,
 )

@@ -17,6 +17,7 @@ from app.historico import (
 )
 from app.models import (
     EventoRequest,
+    StatusRequest,
     GerarTokenRequest,
     RelatorioMdRequest,
     SalvarExecucaoRequest,
@@ -177,6 +178,69 @@ def excluir_triagem(
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@router.patch("/admin/execucao/{codigo}/status")
+def alterar_status(
+    codigo: str,
+    data: StatusRequest,
+    x_admin_key: str | None = Header(default=None),
+):
+    """Muda só o andamento.
+
+    Existe separado do POST /admin/execucao porque aquele grava a execução
+    inteira: mandar só o status por lá apagaria diagnóstico, recomendações e
+    itens do orçamento. Aqui o seletor do painel pode salvar sozinho, no
+    `change` — que é o que o operador espera de um seletor que controla o que o
+    cliente vê, e a ausência disso fazia a régua parecer quebrada.
+
+    Cria a execução se ela ainda não existir: dá para marcar "em análise" antes
+    de preencher qualquer coisa do atendimento.
+    """
+    checar_admin(x_admin_key)
+
+    if data.servico not in TABELAS_POR_SERVICO:
+        raise HTTPException(status_code=400, detail="Serviço inválido.")
+    if data.status not in PASSOS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Status inválido. Use um de: {', '.join(PASSOS)}",
+        )
+
+    tabela = TABELAS_POR_SERVICO[data.servico]
+    agora = agora_iso()
+
+    conn = get_db()
+    try:
+        existe = conn.execute(
+            f"SELECT 1 FROM {tabela} WHERE codigo = ?", (codigo,)
+        ).fetchone()
+        if existe is None:
+            raise HTTPException(status_code=404, detail="Triagem não encontrada.")
+
+        alterou = conn.execute(
+            "UPDATE execucao SET status = ?, atualizado_em = ? WHERE codigo = ?",
+            (data.status, agora, codigo),
+        ).rowcount
+
+        if alterou == 0:
+            conn.execute(
+                """
+                INSERT INTO execucao (codigo, servico, criado_em, atualizado_em, status)
+                VALUES (?,?,?,?,?)
+                """,
+                (codigo, data.servico, agora, agora, data.status),
+            )
+
+        registrar_se_novo(conn, codigo, data.status)
+        conn.commit()
+
+        return {"ok": True, "status": data.status}
+    except HTTPException:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
