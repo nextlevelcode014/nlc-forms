@@ -4,24 +4,16 @@ from email.mime.base import MIMEBase
 from email import encoders
 import smtplib
 
-from app.config import (
-    SMTP_HOST,
-    SMTP_PORT,
-    SMTP_USER,
-    SMTP_PASS,
-    SMTP_FROM,
-    NOTIFY_TO,
-    PAINEL_BASE_URL,
-)
+from app.config import settings
 
 
 def _enviar_email(to: str, subject: str, html: str, attachments: list | None = None):
-    if not SMTP_HOST or not to:
+    if not settings.smtp_host or not to:
         return
 
     msg = MIMEMultipart("alternative" if not attachments else "mixed")
     msg["Subject"] = subject
-    msg["From"] = SMTP_FROM
+    msg["From"] = settings.smtp_from
     msg["To"] = to
 
     if attachments:
@@ -34,10 +26,10 @@ def _enviar_email(to: str, subject: str, html: str, attachments: list | None = N
         msg.attach(MIMEText(html, "html"))
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
             server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(SMTP_FROM, to, msg.as_string())
+            server.login(settings.smtp_user, settings.smtp_pass)
+            server.sendmail(settings.smtp_from, to, msg.as_string())
         print(f"[email] Enviado para {to}: {subject}")
     except Exception as e:
         print(f"[email] Falha ao enviar para {to}: {e}")
@@ -46,14 +38,16 @@ def _enviar_email(to: str, subject: str, html: str, attachments: list | None = N
 def enviar_notificacao_nova_triagem(
     servico: str, codigo: str, nome: str, email_cliente: str
 ):
-    if not SMTP_HOST or not NOTIFY_TO:
+    if not settings.smtp_host or not settings.notify_to:
         print(
             f"[notificação] SMTP não configurado. Triagem {codigo} recebida sem envio de e-mail."
         )
         return
 
+    # O painel é uma página só; `?codigo=&servico=` faz ele abrir direto neste
+    # cliente depois do login.
     link_painel = (
-        f"{PAINEL_BASE_URL}/painel-atendimento.html?codigo={codigo}&servico={servico}"
+        f"{settings.painel_base_url}/?codigo={codigo}&servico={servico}"
     )
 
     servico_label = {
@@ -64,17 +58,17 @@ def enviar_notificacao_nova_triagem(
 
     corpo_html = f"""
     <div style="font-family: monospace; max-width: 480px;">
-      <p style="color:#4f8ef7; font-weight:bold;">Nova triagem recebida</p>
+      <p style="color:#2196F3; font-weight:bold;">Nova triagem recebida</p>
       <p><b>Serviço:</b> {servico_label}<br>
       <b>Cliente:</b> {nome}<br>
       <b>E-mail:</b> {email_cliente}<br>
       <b>Código:</b> {codigo}</p>
-      <p><a href="{link_painel}" style="color:#f97316;">Abrir no painel de atendimento →</a></p>
-      <p style="color:#888; font-size:12px;">NextLevelCode — notificação automática</p>
+      <p><a href="{link_painel}" style="color:#FF7A00;">Abrir no painel de atendimento →</a></p>
+      <p style="color:#555555; font-size:12px;">NextLevelCode — notificação automática</p>
     </div>
     """
 
-    _enviar_email(NOTIFY_TO, f"Nova triagem — {servico_label} — {codigo}", corpo_html)
+    _enviar_email(settings.notify_to, f"Nova triagem — {servico_label} — {codigo}", corpo_html)
 
 
 def notificar_cliente_triagem(servico: str, codigo: str, nome: str, email: str):
@@ -86,15 +80,15 @@ def notificar_cliente_triagem(servico: str, codigo: str, nome: str, email: str):
 
     corpo_html = f"""
     <div style="font-family: monospace; max-width: 520px;">
-      <p style="color:#4f8ef7; font-weight:bold; font-size:18px;">NextLevelCode</p>
+      <p style="color:#2196F3; font-weight:bold; font-size:18px;">NextLevelCode</p>
       <p>Olá <b>{nome}</b>,</p>
       <p>Sua solicitação de <b>{servico_label}</b> foi recebida com sucesso!</p>
       <p style="margin:1.5rem 0;">
-        <span style="font-size:14px; color:#888;">Código de consulta:</span><br>
-        <span style="font-family:monospace; font-size:24px; font-weight:bold; color:#f97316;">{codigo}</span>
+        <span style="font-size:14px; color:#555555;">Código de consulta:</span><br>
+        <span style="font-family:monospace; font-size:24px; font-weight:bold; color:#FF7A00;">{codigo}</span>
       </p>
       <p>Guarde este código para acompanhar o andamento do seu atendimento.</p>
-      <p style="color:#888; font-size:12px; margin-top:2rem;">NextLevelCode — Suporte Técnico</p>
+      <p style="color:#555555; font-size:12px; margin-top:2rem;">NextLevelCode — Suporte Técnico</p>
     </div>
     """
 
@@ -112,11 +106,11 @@ def enviar_pdf_cliente(
 
     corpo_html = f"""
     <div style="font-family: monospace; max-width: 520px;">
-      <p style="color:#4f8ef7; font-weight:bold; font-size:18px;">NextLevelCode</p>
+      <p style="color:#2196F3; font-weight:bold; font-size:18px;">NextLevelCode</p>
       <p>Olá <b>{nome}</b>,</p>
       <p>Segue em anexo o orçamento referente ao seu atendimento de <b>{servico_label}</b>.</p>
-      <p>Código de consulta: <b style="color:#f97316;">{codigo}</b></p>
-      <p style="color:#888; font-size:12px; margin-top:2rem;">NextLevelCode — Suporte Técnico</p>
+      <p>Código de consulta: <b style="color:#FF7A00;">{codigo}</b></p>
+      <p style="color:#555555; font-size:12px; margin-top:2rem;">NextLevelCode — Suporte Técnico</p>
     </div>
     """
 

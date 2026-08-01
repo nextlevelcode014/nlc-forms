@@ -1,33 +1,76 @@
-import os
+from typing import Annotated
 
+from pydantic import ValidationError, field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
-def _require(name: str) -> str:
-    val = os.getenv(name)
-    if not val:
-        raise RuntimeError(
-            f"Variavel de ambiente {name} é obrigatória. "
-            "Defina-a no .env ou no ambiente do container."
-        )
-    return val
-
-
-ALLOWED_ORIGINS = _require("ALLOWED_ORIGINS").split(",")
-
-DB_PATH = os.getenv("DB_PATH", "/data/forms.db")
-
-ADMIN_KEY = _require("ADMIN_KEY")
-
-TOKEN_TTL_HOURS = int(os.getenv("TOKEN_TTL_HOURS", "48"))
 
 SERVICOS_VALIDOS = {"suporte", "seguranca", "desenvolvimento"}
 
-SMTP_HOST = os.getenv("SMTP_HOST")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER")
-SMTP_PASS = os.getenv("SMTP_PASS")
-SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER)
-NOTIFY_TO = os.getenv("NOTIFY_TO")
-PAINEL_BASE_URL = _require("PAINEL_BASE_URL")
 
-RATE_LIMIT = int(os.getenv("RATE_LIMIT", "10"))
-RATE_LIMIT_WINDOW = 60
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # ── Obrigatórias ──
+    allowed_origins: Annotated[list[str], NoDecode]
+    admin_key: str
+    painel_base_url: str
+
+    # ── Banco ──
+    db_path: str = "/data/forms.db"
+
+    # ── Tokens ──
+    token_ttl_hours: int = 48
+
+    # ── SMTP (opcional — sem host, e-mails são ignorados) ──
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_pass: str = ""
+    smtp_from: str = ""
+    notify_to: str = ""
+
+    # ── Rate limit ──
+    rate_limit: int = 10
+    rate_limit_window: int = 60
+
+    # ── Popular o banco com clientes fictícios (só para demo/testes) ──
+    seed_demo: bool = False
+
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def _split_origins(cls, v):
+        """ALLOWED_ORIGINS vem como lista separada por vírgula, não como JSON."""
+        if isinstance(v, str):
+            return [o.strip() for o in v.split(",") if o.strip()]
+        return v
+
+    @model_validator(mode="after")
+    def _smtp_from_default(self):
+        if not self.smtp_from:
+            self.smtp_from = self.smtp_user
+        return self
+
+
+def _carregar() -> Settings:
+    try:
+        return Settings()
+    except ValidationError as e:
+        faltando = [
+            str(erro["loc"][0]).upper()
+            for erro in e.errors()
+            if erro["type"] == "missing"
+        ]
+        if faltando:
+            raise RuntimeError(
+                f"Variáveis de ambiente obrigatórias não definidas: {', '.join(faltando)}. "
+                "Defina-as no .env ou no ambiente do container (veja .env.example)."
+            ) from e
+        raise
+
+
+settings = _carregar()

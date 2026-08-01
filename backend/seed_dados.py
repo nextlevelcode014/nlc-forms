@@ -1,7 +1,9 @@
 import json
 import secrets
 import string
-from datetime import datetime, timedelta
+from datetime import timedelta
+
+from app.tempo import agora as agora_utc
 
 from app.database import init_db, get_db
 
@@ -28,7 +30,7 @@ def seed_dados():
             print("[seed_dados] Banco já possui dados. Nada foi alterado.")
             return
 
-        agora = datetime.utcnow()
+        agora = agora_utc()
 
         # ── tokens ──
         tokens = {}

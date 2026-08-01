@@ -1,41 +1,36 @@
-import os
 import json
-import tempfile
-
-os.environ["DB_PATH"] = tempfile.mktemp(suffix=".db")
-os.environ["ADMIN_KEY"] = "test-admin-key"
-os.environ["SMTP_HOST"] = ""
+from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+
 from app import app
-from app.database import init_db, get_db
+from app.database import get_db
 from app.auth import gerar_token
+from app.tempo import agora
 
-
-@pytest.fixture(autouse=True)
-def setup_db():
-    init_db()
-    conn = get_db()
-    conn.execute("DELETE FROM tokens")
-    conn.execute("DELETE FROM triagem_suporte")
-    conn.execute("DELETE FROM triagem_seguranca")
-    conn.execute("DELETE FROM triagem_desenvolvimento")
-    conn.execute("DELETE FROM execucao")
-    conn.commit()
-    conn.close()
-    yield
-
+# As variáveis de ambiente e o banco limpo vêm do conftest.py.
 
 client = TestClient(app)
 
 
 def criar_token(servico="suporte", horas=48):
+    """Token válido por `horas` a partir de agora.
+
+    As datas são relativas de propósito: antes eram fixas em junho/2026, então
+    a suíte inteira passou a falhar sozinha quando essa data ficou no passado.
+    """
     token = gerar_token()
+    criado = agora()
     conn = get_db()
     conn.execute(
         "INSERT INTO tokens (token, servico, criado_em, expira_em) VALUES (?,?,?,?)",
-        (token, servico, "2026-06-20T00:00:00", "2026-06-22T00:00:00"),
+        (
+            token,
+            servico,
+            criado.isoformat(),
+            (criado + timedelta(hours=horas)).isoformat(),
+        ),
     )
     conn.commit()
     conn.close()
@@ -189,7 +184,7 @@ class TestAdmin:
 
     def test_buscar_triagem_admin(self):
         token = criar_token("suporte")
-        client.post(
+        criada = client.post(
             "/triagem/suporte?token=" + token,
             json={
                 "nome": "Admin Test", "email": "admin@test.com", "telefone": "",
@@ -200,11 +195,26 @@ class TestAdmin:
                 "modalidade": "remoto", "observacoes": "",
             },
         )
+        codigo = criada.json()["codigo"]
+
         r = client.get(
-            "/admin/triagem?codigo=NLC-INVALIDO&servico=suporte",
+            f"/admin/triagem/{codigo}?servico=suporte",
+            headers={"X-Admin-Key": "test-admin-key"},
+        )
+        assert r.status_code == 200
+        assert r.json()["triagem"]["nome"] == "Admin Test"
+        # Triagem recém-criada ainda não tem atendimento registrado.
+        assert r.json()["execucao"] is None
+
+    def test_buscar_triagem_admin_codigo_inexistente(self):
+        """A rota é /admin/triagem/{codigo} — com `?codigo=` o 404 vinha do
+        roteador, e o endpoint nunca chegava a ser exercitado."""
+        r = client.get(
+            "/admin/triagem/NLC-INVALIDO?servico=suporte",
             headers={"X-Admin-Key": "test-admin-key"},
         )
         assert r.status_code == 404
+        assert r.json()["detail"] == "Triagem não encontrada."
 
     def test_salvar_execucao(self):
         token = criar_token("suporte")
@@ -303,3 +313,79 @@ class TestAdmin:
         data = r2.json()
         assert data["ok"] is True
         assert "cli@test.com" in data["mensagem"]
+
+
+# ── Regressões (bugs corrigidos) ──
+
+TRIAGEM_SUPORTE_VALIDA = {
+    "nome": "Regressão", "email": "reg@test.com", "telefone": "",
+    "problema": "teste", "quando": "hoje", "causa": "",
+    "tentou": "", "marca": "Marca", "modelo": "",
+    "sistema": "Linux", "idade": "", "armazenamento": "",
+    "ram": "", "tem_backup": "nao", "programas": "",
+    "modalidade": "remoto", "observacoes": "",
+}
+
+
+class TestRegressoes:
+    def test_token_expirado_rejeita(self):
+        """Token com expira_em no passado não pode ser aceito."""
+        token = criar_token("suporte", horas=-1)
+        r = client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA)
+        assert r.status_code == 403
+        assert "expirou" in r.json()["detail"]
+
+    def test_token_e_consumido_apos_envio(self):
+        """Depois de uma triagem bem-sucedida o link não serve mais."""
+        token = criar_token("suporte")
+        assert client.post(
+            f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA
+        ).status_code == 201
+
+        r2 = client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA)
+        assert r2.status_code == 403
+        assert "já foi utilizado" in r2.json()["detail"]
+
+        r3 = client.get(f"/token/{token}/validar?servico=suporte")
+        assert r3.json()["valido"] is False
+
+    def test_token_nao_e_queimado_se_a_gravacao_falhar(self):
+        """O token só é consumido junto com o INSERT.
+
+        Antes ele era marcado como usado e commitado antes da gravação: se o
+        INSERT falhasse, o cliente perdia o link sem ter triagem nenhuma.
+        """
+        token = criar_token("suporte")
+
+        conn = get_db()
+        conn.execute("DROP TABLE triagem_suporte")
+        conn.commit()
+        conn.close()
+
+        r = client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA)
+        assert r.status_code == 500
+
+        from app.database import init_db
+        init_db()
+
+        # O link continua válido — dá para tentar de novo.
+        assert client.get(f"/token/{token}/validar?servico=suporte").json()["valido"] is True
+
+    def test_listar_triagens_servico_invalido(self):
+        """Serviço desconhecido devolve 400, não 500 por KeyError."""
+        r = client.get(
+            "/admin/triagens?servico=naoexiste",
+            headers={"X-Admin-Key": "test-admin-key"},
+        )
+        assert r.status_code == 400
+
+    def test_listar_triagens_sem_filtro(self):
+        token = criar_token("suporte")
+        client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA)
+        r = client.get("/admin/triagens", headers={"X-Admin-Key": "test-admin-key"})
+        assert r.status_code == 200
+        assert r.json()["total"] == 1
+
+    def test_admin_key_errada_rejeita(self):
+        r = client.get("/admin/triagens", headers={"X-Admin-Key": "chave-errada"})
+        assert r.status_code == 401

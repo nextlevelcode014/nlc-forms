@@ -1,17 +1,19 @@
 import sqlite3
 import os
 
-from app.config import DB_PATH
+from app.config import settings
 
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(settings.db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def init_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    pasta = os.path.dirname(settings.db_path)
+    if pasta:
+        os.makedirs(pasta, exist_ok=True)
     conn = get_db()
 
     conn.execute("""
@@ -127,6 +129,27 @@ def init_db():
             pdf_gerado_em       TEXT
         )
     """)
+
+    # Guarda o Markdown, não o PDF: o documento é renderizado sob demanda, então
+    # relatório antigo sempre sai no template atual da marca. Salvar o binário
+    # congelaria o histórico numa versão velha da identidade visual.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS relatorios_md (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            codigo         TEXT NOT NULL,
+            titulo         TEXT NOT NULL,
+            subtitulo      TEXT,
+            descricao      TEXT,
+            versao         TEXT,
+            markdown       TEXT NOT NULL,
+            criado_em      TEXT NOT NULL,
+            atualizado_em  TEXT NOT NULL
+        )
+    """)
+
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_relatorios_md_codigo ON relatorios_md(codigo)"
+    )
 
     conn.commit()
     conn.close()

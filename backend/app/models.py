@@ -67,6 +67,22 @@ class ItemOrcamento(BaseModel):
     valor_unitario: float
 
 
+class RelatorioMdRequest(BaseModel):
+    """Relatório técnico escrito em Markdown.
+
+    Os campos de metadado são opcionais porque podem vir do frontmatter do
+    próprio arquivo; quando preenchidos aqui, sobrescrevem o frontmatter — o
+    formulário é a palavra final.
+    """
+
+    codigo: str
+    markdown: str
+    titulo: str = ""
+    subtitulo: str = ""
+    descricao: str = ""
+    versao: str = ""
+
+
 class SalvarExecucaoRequest(BaseModel):
     codigo: str
     servico: str

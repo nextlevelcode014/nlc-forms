@@ -1,9 +1,8 @@
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, Query
 
 from app.database import get_db
 from app.ratelimit import check_rate_limit
+from app.tempo import agora, parse as parse_data
 
 router = APIRouter(tags=["token"], dependencies=[Depends(check_rate_limit)])
 
@@ -25,8 +24,8 @@ def validar_token(token: str, servico: str = Query(...)):
         if row["usado"]:
             return {"valido": False, "motivo": "Este link já foi utilizado."}
 
-        expira_em = datetime.fromisoformat(row["expira_em"])
-        if datetime.utcnow() > expira_em:
+        expira_em = parse_data(row["expira_em"])
+        if agora() > expira_em:
             return {"valido": False, "motivo": "Este link expirou."}
 
         return {"valido": True}

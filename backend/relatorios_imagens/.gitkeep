@@ -1,0 +1,3 @@
+Imagens referenciadas por `![alt](arquivo.png)` nos relatórios em Markdown.
+Só arquivos daqui são incorporados: URLs não são baixadas (SSRF) e `../` é
+barrado. Ver `_resolver_imagem` em relatorio_md.py.
