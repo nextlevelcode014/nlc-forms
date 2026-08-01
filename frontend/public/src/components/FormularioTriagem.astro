@@ -189,14 +189,9 @@ function agrupar(campos: TCampo[]): TCampo[][] {
     } catch (erro) {
       avisar(
         'erro',
-        // 409 é o e-mail já cadastrado neste serviço. A mensagem do backend já
-        // é escrita para o cliente ler ("me chame no WhatsApp"), então prefixar
-        // com "Erro ao enviar" só a deixaria mais assustadora do que o caso é.
-        erro instanceof ErroApi && erro.status === 409
-          ? erro.message
-          : erro instanceof ErroApi
-            ? `Erro ao enviar: ${erro.message}`
-            : 'Não foi possível conectar ao servidor. Tente novamente.',
+        erro instanceof ErroApi
+          ? `Erro ao enviar: ${erro.message}`
+          : 'Não foi possível conectar ao servidor. Tente novamente.',
       );
       botao.disabled = false;
       botao.textContent = 'Enviar triagem →';
@@ -223,13 +218,20 @@ function agrupar(campos: TCampo[]): TCampo[][] {
 
     const dica = document.createElement('p');
     dica.className = 'estado__dica';
-    dica.textContent = 'Guarde este código para consulta futura:';
+    dica.textContent = 'Guarde este código para acompanhar o atendimento:';
 
     const valor = document.createElement('p');
     valor.className = 'codigo';
     valor.textContent = codigo;
 
-    caixa.append(icone, titulo, texto, dica, valor);
+    // O link vai pronto, com o código embutido: pedir para o cliente copiar,
+    // abrir outra página e colar é onde ele desiste e volta para o WhatsApp.
+    const acompanhar = document.createElement('a');
+    acompanhar.className = 'btn';
+    acompanhar.href = `/acompanhar.html?codigo=${encodeURIComponent(codigo)}`;
+    acompanhar.textContent = 'Acompanhar atendimento →';
+
+    caixa.append(icone, titulo, texto, dica, valor, acompanhar);
     return caixa;
   }
 

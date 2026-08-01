@@ -1,0 +1,289 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base titulo="Acompanhar atendimento — NextLevelCode">
+  {/*
+    A página do cliente. A credencial é o código, como no rastreio dos Correios,
+    então nada aqui pede login — e por isso a API devolve só estado e linha do
+    tempo, nunca as respostas que ele deu nem os dados de contato.
+  */}
+
+  <div id="busca-codigo">
+    <div class="intro">
+      <h1>acompanhar atendimento</h1>
+      <p>Informe o código que você recebeu ao enviar o formulário.</p>
+    </div>
+
+    <form id="form-codigo">
+      <div class="campo">
+        <label for="codigo">Código do atendimento</label>
+        <input
+          type="text"
+          id="codigo"
+          placeholder="NLC-XXXX-XXXX"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+      <button type="submit" class="btn btn--largo" id="btn-buscar">Acompanhar →</button>
+    </form>
+
+    <div id="feedback-codigo" class="feedback" role="status" aria-live="polite"></div>
+  </div>
+
+  <div id="painel" hidden>
+    <div class="intro">
+      <p class="ola" id="ola">—</p>
+      <h1 id="status-atual">—</h1>
+      <p class="referencia">
+        <span class="mono" id="codigo-atual">—</span> · <span id="servico">—</span> ·
+        aberto em <span id="aberto-em">—</span>
+      </p>
+    </div>
+
+    <!-- Régua de etapas. A lista vem da API para uma etapa nova aparecer aqui
+         sem alterar esta página. -->
+    <ol class="regua" id="regua"></ol>
+
+    <section class="cartao" id="bloco-orcamento" hidden>
+      <span class="cartao__rotulo">Orçamento</span>
+      <p class="orcamento__valor" id="orcamento-valor">—</p>
+      <p class="orcamento__validade" id="orcamento-validade"></p>
+    </section>
+
+    <section class="cartao">
+      <span class="cartao__rotulo">Histórico</span>
+      <ol class="linha-tempo" id="linha-tempo"></ol>
+    </section>
+
+    <section class="cartao">
+      <span class="cartao__rotulo">Falar sobre o atendimento</span>
+      <p class="cartao__ajuda">
+        Lembrou de algo que esqueceu de contar? Escreva aqui — fica registrado no
+        seu atendimento e eu recebo um aviso.
+      </p>
+      <div class="campo">
+        <label for="mensagem">Mensagem</label>
+        <textarea id="mensagem" maxlength="1000" placeholder="Ex: esqueci de dizer que ele desliga sozinho"></textarea>
+      </div>
+      <button type="button" class="btn" id="btn-mensagem">Enviar mensagem</button>
+      <div id="feedback-mensagem" class="feedback" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="cartao">
+      <span class="cartao__rotulo">Meus dados</span>
+      <p class="cartao__ajuda">
+        Mudou de telefone? Atualize aqui para eu conseguir falar com você.
+      </p>
+      <div class="campo-par">
+        <div class="campo">
+          <label for="contato-nome">Nome</label>
+          <input type="text" id="contato-nome" autocomplete="name" />
+        </div>
+        <div class="campo">
+          <label for="contato-telefone">Telefone</label>
+          <input type="tel" id="contato-telefone" autocomplete="tel" />
+        </div>
+      </div>
+      <button type="button" class="btn btn--secundario" id="btn-contato">Salvar contato</button>
+      <div id="feedback-contato" class="feedback" role="status" aria-live="polite"></div>
+    </section>
+
+    <p class="rodape-acao">
+      <button type="button" class="link-acao" id="btn-outro">acompanhar outro código</button>
+    </p>
+  </div>
+</Base>
+
+<script>
+  import { ErroApi } from '@nlc/shared/lib/api';
+  import {
+    atualizarContato,
+    buscarAcompanhamento,
+    enviarMensagem,
+    posicaoDoPasso,
+    type Acompanhamento,
+    type EventoPublico,
+  } from '@nlc/shared/lib/acompanhar';
+
+  const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+
+  let codigoAtual = '';
+
+  function avisar(id: string, tipo: 'sucesso' | 'erro' | '', mensagem: string) {
+    const alvo = el(id);
+    alvo.className = tipo ? `feedback ${tipo}` : 'feedback';
+    alvo.textContent = mensagem;
+  }
+
+  const dataHora = (iso: string) =>
+    new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+  async function carregar(codigo: string) {
+    avisar('feedback-codigo', '', '');
+    el<HTMLButtonElement>('btn-buscar').disabled = true;
+
+    try {
+      const dados = await buscarAcompanhamento(codigo);
+      codigoAtual = dados.codigo;
+      desenhar(dados);
+
+      el('busca-codigo').hidden = true;
+      el('painel').hidden = false;
+
+      // O código na URL faz o link ser guardável e recarregável — é o que
+      // transforma a página em algo que o cliente volta a abrir.
+      history.replaceState(null, '', `?codigo=${encodeURIComponent(dados.codigo)}`);
+    } catch (erro) {
+      avisar(
+        'feedback-codigo',
+        'erro',
+        erro instanceof ErroApi
+          ? erro.message
+          : 'Não foi possível consultar agora. Tente novamente em instantes.',
+      );
+    } finally {
+      el<HTMLButtonElement>('btn-buscar').disabled = false;
+    }
+  }
+
+  function desenhar(d: Acompanhamento) {
+    el('ola').textContent = d.cliente ? `Olá, ${d.cliente}` : 'Olá';
+    el('status-atual').textContent = d.status_rotulo.toLowerCase();
+    el('codigo-atual').textContent = d.codigo;
+    el('servico').textContent = d.servico_rotulo;
+    el('aberto-em').textContent = new Date(d.aberto_em).toLocaleDateString('pt-BR');
+
+    desenharRegua(d);
+
+    const temOrcamento = d.orcamento !== null;
+    el('bloco-orcamento').hidden = !temOrcamento;
+    if (d.orcamento) {
+      el('orcamento-valor').textContent = d.orcamento.total.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      });
+      el('orcamento-validade').textContent = d.orcamento.validade
+        ? `Válido até ${d.orcamento.validade}`
+        : '';
+    }
+
+    el('linha-tempo').replaceChildren(...d.historico.map(evento));
+  }
+
+  function desenharRegua(d: Acompanhamento) {
+    const atual = posicaoDoPasso(d);
+
+    el('regua').replaceChildren(
+      ...d.passos.map((p, i) => {
+        const li = document.createElement('li');
+        // -1 é status fora da régua: nada fica marcado, em vez de a barra
+        // voltar ao começo e sugerir que o atendimento regrediu.
+        const estado = atual < 0 ? 'pendente' : i < atual ? 'feito' : i === atual ? 'atual' : 'pendente';
+        li.className = `regua__passo regua__passo--${estado}`;
+        li.textContent = p.rotulo;
+        if (i === atual) li.setAttribute('aria-current', 'step');
+        return li;
+      }),
+    );
+  }
+
+  /* Montado por DOM: o detalhe é escrito à mão e não pode virar HTML. */
+  function evento(e: EventoPublico): HTMLLIElement {
+    const li = document.createElement('li');
+    li.className = `evento evento--${e.origem}`;
+
+    const topo = document.createElement('div');
+    topo.className = 'evento__topo';
+
+    const rotulo = document.createElement('span');
+    rotulo.className = 'evento__rotulo';
+    rotulo.textContent = e.origem === 'cliente' ? 'Você escreveu' : e.rotulo;
+
+    const quando = document.createElement('time');
+    quando.className = 'evento__quando';
+    quando.dateTime = e.criado_em;
+    quando.textContent = dataHora(e.criado_em);
+
+    topo.append(rotulo, quando);
+    li.append(topo);
+
+    if (e.detalhe) {
+      const detalhe = document.createElement('p');
+      detalhe.className = 'evento__detalhe';
+      detalhe.textContent = e.detalhe;
+      li.append(detalhe);
+    }
+
+    return li;
+  }
+
+  // ── Ações ───────────────────────────────────────────────────
+
+  el('form-codigo').addEventListener('submit', (evt) => {
+    evt.preventDefault();
+    const codigo = el<HTMLInputElement>('codigo').value.trim().toUpperCase();
+    if (codigo) carregar(codigo);
+  });
+
+  el('btn-mensagem').addEventListener('click', async () => {
+    const campo = el<HTMLTextAreaElement>('mensagem');
+    const texto = campo.value.trim();
+    if (!texto) {
+      avisar('feedback-mensagem', 'erro', 'Escreva a mensagem antes de enviar.');
+      return;
+    }
+
+    try {
+      await enviarMensagem(codigoAtual, texto);
+      campo.value = '';
+      avisar('feedback-mensagem', 'sucesso', 'Mensagem enviada. Ela já aparece no histórico.');
+      // Recarrega para o recado aparecer na linha do tempo na hora — é a prova
+      // para o cliente de que a mensagem chegou a algum lugar.
+      const dados = await buscarAcompanhamento(codigoAtual);
+      desenhar(dados);
+    } catch (erro) {
+      avisar(
+        'feedback-mensagem',
+        'erro',
+        erro instanceof ErroApi ? erro.message : 'Não foi possível enviar agora.',
+      );
+    }
+  });
+
+  el('btn-contato').addEventListener('click', async () => {
+    const nome = el<HTMLInputElement>('contato-nome').value.trim();
+    const telefone = el<HTMLInputElement>('contato-telefone').value.trim();
+
+    if (!nome && !telefone) {
+      avisar('feedback-contato', 'erro', 'Preencha o nome ou o telefone.');
+      return;
+    }
+
+    try {
+      await atualizarContato(codigoAtual, { nome, telefone });
+      avisar('feedback-contato', 'sucesso', 'Contato atualizado.');
+    } catch (erro) {
+      avisar(
+        'feedback-contato',
+        'erro',
+        erro instanceof ErroApi ? erro.message : 'Não foi possível salvar agora.',
+      );
+    }
+  });
+
+  el('btn-outro').addEventListener('click', () => {
+    el('painel').hidden = true;
+    el('busca-codigo').hidden = false;
+    el<HTMLInputElement>('codigo').value = '';
+    history.replaceState(null, '', location.pathname);
+  });
+
+  // Link com o código já pronto: o cliente abre e vê o estado, sem digitar nada.
+  const daUrl = new URLSearchParams(location.search).get('codigo');
+  if (daUrl) {
+    el<HTMLInputElement>('codigo').value = daUrl;
+    carregar(daUrl);
+  }
+</script>

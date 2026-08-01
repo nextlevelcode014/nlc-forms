@@ -10,6 +10,39 @@ const servicos = Object.entries(ROTULO_SERVICO);
 </div>
 
 <form id="form-token" class="cartao">
+  <!-- O cliente vem primeiro porque é ele que define a pasta: o link é gerado
+       PARA alguém, e é isso que faz a triagem cair no lugar certo mesmo se o
+       cliente digitar o e-mail errado no formulário. -->
+  <div class="campo">
+    <label for="busca-cliente">Cliente</label>
+    <input type="text" id="busca-cliente" placeholder="Buscar por nome, e-mail ou telefone..."
+           autocomplete="off" />
+    <ul class="sugestoes" id="sugestoes-cliente" hidden></ul>
+    <p class="selecionado" id="cliente-escolhido" hidden></p>
+    <button type="button" class="link-acao" id="btn-novo-cliente">+ cadastrar novo cliente</button>
+  </div>
+
+  <fieldset class="novo-cliente" id="form-novo-cliente" hidden>
+    <legend class="novo-cliente__titulo">Novo cliente</legend>
+    <div class="campo-par">
+      <div class="campo">
+        <label for="nc-nome">Nome</label>
+        <input type="text" id="nc-nome" autocomplete="off" />
+      </div>
+      <div class="campo">
+        <label for="nc-email">E-mail</label>
+        <input type="email" id="nc-email" autocomplete="off" />
+      </div>
+    </div>
+    <div class="campo">
+      <label for="nc-telefone">Telefone <span class="dica">(opcional)</span></label>
+      <input type="text" id="nc-telefone" autocomplete="off" />
+    </div>
+    <button type="button" class="btn btn--secundario btn-sm" id="btn-salvar-cliente">
+      Cadastrar e usar
+    </button>
+  </fieldset>
+
   <div class="campo-par">
     <div class="campo">
       <label for="servico">Serviço</label>
@@ -113,6 +146,13 @@ const servicos = Object.entries(ROTULO_SERVICO);
 <script>
   import { api } from '@nlc/shared/lib/api';
   import { chaveAtual, traduzirErro } from '@nlc/shared/lib/admin';
+  import {
+    criarCliente,
+    identidade,
+    listarClientes,
+    type Cliente,
+    type ClienteComResumo,
+  } from '@nlc/shared/lib/clientes';
   import { ROTULO_SERVICO, type Servico } from '@nlc/shared/lib/triagem';
 
   const form = document.getElementById('form-token') as HTMLFormElement;
@@ -130,6 +170,106 @@ const servicos = Object.entries(ROTULO_SERVICO);
   };
 
   const valor = (id: string) => (document.getElementById(id) as HTMLInputElement).value.trim();
+  const elemento = (id: string) => document.getElementById(id)!;
+
+  // ── Seleção do cliente ──────────────────────────────────────
+
+  let clienteEscolhido: Cliente | null = null;
+  let debounce: ReturnType<typeof setTimeout> | undefined;
+
+  function escolher(c: Cliente) {
+    clienteEscolhido = c;
+    const alvo = elemento('cliente-escolhido');
+    alvo.textContent = identidade(c);
+    alvo.hidden = false;
+    elemento('sugestoes-cliente').hidden = true;
+    (elemento('busca-cliente') as HTMLInputElement).value = '';
+    elemento('form-novo-cliente').hidden = true;
+  }
+
+  async function buscar(termo: string) {
+    const lista = elemento('sugestoes-cliente');
+    if (termo.length < 2) {
+      lista.hidden = true;
+      return;
+    }
+
+    try {
+      const { clientes } = await listarClientes(chaveAtual(), termo);
+      lista.replaceChildren(...clientes.slice(0, 8).map(sugestao));
+      lista.hidden = clientes.length === 0;
+    } catch {
+      lista.hidden = true;
+    }
+  }
+
+  /* Montado por DOM, como o resto do painel: nome e telefone chegam de campo de
+     texto e não podem virar HTML. */
+  function sugestao(c: ClienteComResumo): HTMLLIElement {
+    const li = document.createElement('li');
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'sugestao';
+
+    const nome = document.createElement('span');
+    nome.className = 'sugestao__nome';
+    nome.textContent = c.nome;
+
+    const email = document.createElement('span');
+    email.className = 'sugestao__email';
+    email.textContent = c.email;
+
+    botao.append(nome, email);
+    if (c.triagens > 0) {
+      const marca = document.createElement('span');
+      marca.className = 'sugestao__tag';
+      marca.textContent = `${c.triagens} triagem${c.triagens === 1 ? '' : 's'}`;
+      botao.append(marca);
+    }
+
+    botao.addEventListener('click', () => escolher(c));
+    li.append(botao);
+    return li;
+  }
+
+  elemento('busca-cliente').addEventListener('input', (evento) => {
+    clearTimeout(debounce);
+    const termo = (evento.target as HTMLInputElement).value.trim();
+    // Espera a digitação parar: uma requisição por tecla estoura o rate limit
+    // da API (10 por janela) antes de você terminar de escrever um nome.
+    debounce = setTimeout(() => buscar(termo), 250);
+  });
+
+  elemento('btn-novo-cliente').addEventListener('click', () => {
+    const painel = elemento('form-novo-cliente');
+    painel.hidden = !painel.hidden;
+  });
+
+  elemento('btn-salvar-cliente').addEventListener('click', async () => {
+    const nome = valor('nc-nome');
+    const email = valor('nc-email');
+    if (!nome || !email) {
+      feedback.className = 'feedback erro';
+      feedback.textContent = 'Nome e e-mail são obrigatórios.';
+      return;
+    }
+
+    try {
+      const criado = await criarCliente(chaveAtual(), {
+        nome,
+        email,
+        telefone: valor('nc-telefone'),
+      });
+      escolher(criado);
+      feedback.className = 'feedback';
+      for (const id of ['nc-nome', 'nc-email', 'nc-telefone']) {
+        (elemento(id) as HTMLInputElement).value = '';
+      }
+    } catch (erro) {
+      feedback.className = 'feedback erro';
+      feedback.textContent = traduzirErro(erro, 'Erro ao cadastrar');
+    }
+  });
 
   form.addEventListener('submit', async (evento) => {
     evento.preventDefault();
@@ -138,6 +278,12 @@ const servicos = Object.entries(ROTULO_SERVICO);
     const horas = Number(valor('validade'));
     const nota = valor('nota');
     const baseFormularios = valor('base-formularios').replace(/\/$/, '');
+
+    if (!clienteEscolhido) {
+      feedback.className = 'feedback erro';
+      feedback.textContent = 'Escolha ou cadastre o cliente antes de gerar o link.';
+      return;
+    }
 
     feedback.className = 'feedback';
     resultado.hidden = true;
@@ -149,13 +295,14 @@ const servicos = Object.entries(ROTULO_SERVICO);
       const dados = await api<{ token: string; expira_em: string }>('/admin/gerar-token', {
         method: 'POST',
         adminKey: chaveAtual(),
-        body: { servico, nota, validade_horas: horas },
+        body: { cliente_id: clienteEscolhido.id, servico, nota, validade_horas: horas },
       });
 
       link.value = `${baseFormularios}/${ARQUIVO[servico]}?token=${dados.token}&servico=${servico}`;
 
       // Montado por DOM: a nota é texto livre e já foi injetada como HTML aqui antes.
       meta.replaceChildren(
+        ...linha('Cliente', identidade(clienteEscolhido)),
         ...linha('Serviço', ROTULO_SERVICO[servico]),
         ...linha('Expira em', `${horas}h — ${new Date(dados.expira_em).toLocaleString('pt-BR')}`),
         ...(nota ? linha('Nota', nota) : []),

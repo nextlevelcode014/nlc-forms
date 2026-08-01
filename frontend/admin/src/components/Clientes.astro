@@ -29,17 +29,17 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
        mostra isso, porque cada triagem é uma linha solta. -->
   <div class="barra-cruzados">
     <button type="button" class="link-acao" id="btn-cruzados">
-      Clientes em mais de um serviço →
+      Ver clientes (pastas) →
     </button>
   </div>
 
   <div id="painel-cruzados" class="cartao cruzados" hidden>
     <div class="cartao__topo">
-      <h2 class="cartao__titulo">Clientes em mais de um serviço</h2>
+      <h2 class="cartao__titulo">Clientes</h2>
       <button type="button" class="link-acao" id="btn-fechar-cruzados">fechar</button>
     </div>
     <p id="cruzados-vazio" class="aviso-estado" hidden>
-      Ninguém ainda aparece em dois serviços diferentes.
+      Nenhum cliente cadastrado ainda. Cadastre um na aba "Gerar token".
     </p>
     <ul class="cruzados__lista" id="cruzados-lista"></ul>
   </div>
@@ -81,6 +81,7 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
 <script>
   import { api } from '@nlc/shared/lib/api';
   import { chaveAtual, traduzirErro } from '@nlc/shared/lib/admin';
+  import { listarClientes, type ClienteComResumo } from '@nlc/shared/lib/clientes';
   import { ROTULO_SERVICO, STATUS_LABEL, type Servico } from '@nlc/shared/lib/triagem';
 
   const POR_PAGINA = 20;
@@ -248,14 +249,6 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
 
   // ── Clientes em mais de um serviço ──────────────────────────
 
-  interface Cruzado {
-    email: string;
-    nome: string;
-    servicos: Servico[];
-    triagens: number;
-    ultima: string | null;
-  }
-
   async function carregarCruzados() {
     const painel = el('painel-cruzados');
     const lista = el('cruzados-lista');
@@ -266,9 +259,7 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
     semNada.hidden = true;
 
     try {
-      const dados = await api<{ clientes: Cruzado[] }>('/admin/clientes-cruzados', {
-        adminKey: chaveAtual(),
-      });
+      const dados = await listarClientes(chaveAtual());
 
       if (dados.clientes.length === 0) {
         semNada.hidden = false;
@@ -283,7 +274,7 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
     }
   }
 
-  function itemCruzado(c: Cruzado): HTMLLIElement {
+  function itemCruzado(c: ClienteComResumo): HTMLLIElement {
     const li = document.createElement('li');
     li.className = 'cruzados__item';
 
@@ -298,13 +289,21 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
     servicos.append(
       ...c.servicos.map((s) => marcado('span', 'tag-servico', ROTULO_SERVICO[s] ?? s)),
     );
+    // A marca de quem já contratou mais de uma coisa. Antes isso exigia uma
+    // rota própria de cruzamento; com a pasta materializada virou um COUNT.
+    if (c.servicos_distintos > 1) {
+      servicos.append(marcado('span', 'tag tag--cruzado', 'multi-serviço'));
+    }
 
     // Reaproveita a busca da lista: um clique põe o e-mail no filtro e as
     // triagens dos dois serviços aparecem juntas.
     const ver = document.createElement('button');
     ver.type = 'button';
     ver.className = 'link-acao';
-    ver.textContent = `ver as ${c.triagens} →`;
+    ver.textContent = c.triagens
+      ? `ver as ${c.triagens} →`
+      : 'sem triagens';
+    ver.disabled = c.triagens === 0;
     ver.addEventListener('click', () => {
       el<HTMLInputElement>('busca').value = c.email;
       el<HTMLSelectElement>('filtro-servico').value = '';

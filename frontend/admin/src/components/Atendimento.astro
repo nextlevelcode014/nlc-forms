@@ -33,6 +33,42 @@ import { STATUS_LABEL } from '@nlc/shared/lib/triagem';
         <div class="grade" id="grade-triagem"></div>
       </section>
 
+      <!-- Linha do tempo: o que o cliente vê no acompanhamento, mais o que só
+           você vê. É por aqui que "aguardando a peça" sai do WhatsApp. -->
+      <section class="cartao">
+        <div class="cartao__topo">
+          <h2 class="cartao__titulo">Andamento</h2>
+          <span class="dica" id="link-acompanhamento"></span>
+        </div>
+
+        <div class="campo-par">
+          <div class="campo">
+            <label for="evento-passo">Passo</label>
+            <select id="evento-passo"></select>
+          </div>
+          <div class="campo">
+            <label for="evento-detalhe">
+              Detalhe <span class="dica">(o cliente lê)</span>
+            </label>
+            <input type="text" id="evento-detalhe" placeholder="Ex: cooler encomendado, chega quinta" />
+          </div>
+        </div>
+
+        <div class="evento-acoes">
+          <label class="marcador">
+            <input type="checkbox" id="evento-interno" />
+            Só para mim (não aparece para o cliente)
+          </label>
+          <button type="button" class="btn btn--secundario btn-sm" id="btn-add-evento">
+            Registrar
+          </button>
+        </div>
+
+        <div id="feedback-historico" class="feedback" role="status" aria-live="polite"></div>
+
+        <ol class="timeline" id="timeline"></ol>
+      </section>
+
       <!-- Execução -->
       <section class="cartao">
         <div class="cartao__topo">
@@ -265,6 +301,16 @@ Texto do relatório em Markdown..."></textarea>
     servico: Servico;
   }
 
+  interface Evento {
+    id: number;
+    passo: string;
+    rotulo: string;
+    detalhe: string;
+    origem: 'sistema' | 'admin' | 'cliente';
+    visivel_cliente: number;
+    criado_em: string;
+  }
+
   interface Execucao {
     status?: string;
     data_atendimento?: string;
@@ -301,7 +347,11 @@ Texto do relatório em Markdown..."></textarea>
     el('feedback-busca').className = 'feedback';
 
     try {
-      const dados = await api<{ triagem: Record<string, string>; execucao: Execucao | null }>(
+      const dados = await api<{
+        triagem: Record<string, string>;
+        execucao: Execucao | null;
+        historico: Evento[];
+      }>(
         `/admin/triagem/${encodeURIComponent(codigo)}?servico=${servico}`,
         { adminKey: chaveAtual() },
       );
@@ -311,6 +361,7 @@ Texto do relatório em Markdown..."></textarea>
       nomeAtual = dados.triagem.nome ?? '';
 
       desenharTriagem(dados.triagem, servico);
+      desenharTimeline(dados.historico ?? []);
       await carregarCatalogo(servico);
       preencherExecucao(dados.execucao);
       await carregarCruzamento(dados.triagem.email ?? '', codigo);
@@ -835,6 +886,118 @@ Texto do relatório em Markdown..."></textarea>
   });
 
   el('btn-excluir-triagem').addEventListener('click', excluirTriagem);
+
+  // ── Linha do tempo ──────────────────────────────────────────
+
+  /** Os passos vêm da API para o painel não manter a própria cópia da lista. */
+  async function carregarPassos() {
+    const seletor = el<HTMLSelectElement>('evento-passo');
+    if (seletor.options.length > 0) return;
+
+    try {
+      const { passos } = await api<{ passos: { passo: string; rotulo: string }[] }>(
+        '/admin/passos',
+        { adminKey: chaveAtual() },
+      );
+      for (const p of passos) {
+        seletor.append(new Option(p.rotulo, p.passo));
+      }
+      seletor.append(new Option('Outro (escrever)', 'manual'));
+    } catch {
+      // Sem os passos o campo de texto livre ainda funciona.
+      seletor.append(new Option('Outro (escrever)', 'manual'));
+    }
+  }
+
+  function desenharTimeline(eventos: Evento[]) {
+    el('timeline').replaceChildren(...eventos.map(itemEvento));
+    el('link-acompanhamento').textContent = codigoAtual
+      ? `o cliente acompanha por ${codigoAtual}`
+      : '';
+    carregarPassos();
+  }
+
+  function itemEvento(e: Evento): HTMLLIElement {
+    const li = document.createElement('li');
+    li.className = `timeline__item timeline__item--${e.origem}`;
+
+    const topo = document.createElement('div');
+    topo.className = 'timeline__topo';
+
+    const rotulo = document.createElement('span');
+    rotulo.className = 'timeline__rotulo';
+    rotulo.textContent = e.rotulo;
+
+    const quando = document.createElement('span');
+    quando.className = 'timeline__quando';
+    quando.textContent = new Date(e.criado_em).toLocaleString('pt-BR');
+
+    topo.append(rotulo, quando);
+    li.append(topo);
+
+    if (e.detalhe) {
+      const detalhe = document.createElement('p');
+      detalhe.className = 'timeline__detalhe';
+      detalhe.textContent = e.detalhe;
+      li.append(detalhe);
+    }
+
+    if (!e.visivel_cliente) {
+      const marca = document.createElement('span');
+      marca.className = 'timeline__interno';
+      marca.textContent = 'só para mim';
+      li.append(marca);
+    }
+
+    li.append(acao('remover', () => removerEvento(e.id)));
+    return li;
+  }
+
+  async function registrarEvento() {
+    if (!codigoAtual) return;
+
+    const passo = el<HTMLSelectElement>('evento-passo').value;
+    const detalhe = campo('evento-detalhe').value.trim();
+
+    try {
+      await api('/admin/historico', {
+        method: 'POST',
+        adminKey: chaveAtual(),
+        body: {
+          codigo: codigoAtual,
+          passo,
+          detalhe,
+          visivel_cliente: !el<HTMLInputElement>('evento-interno').checked,
+        },
+      });
+      campo('evento-detalhe').value = '';
+      await recarregarTimeline();
+    } catch (erro) {
+      avisar('feedback-historico', 'erro', traduzirErro(erro, 'Erro ao registrar'));
+    }
+  }
+
+  async function removerEvento(id: number) {
+    if (!confirm('Remover este evento da linha do tempo?')) return;
+
+    try {
+      await api(`/admin/historico/${id}`, { method: 'DELETE', adminKey: chaveAtual() });
+      await recarregarTimeline();
+    } catch (erro) {
+      avisar('feedback-historico', 'erro', traduzirErro(erro, 'Erro ao remover'));
+    }
+  }
+
+  async function recarregarTimeline() {
+    if (!codigoAtual || !servicoAtual) return;
+    const dados = await api<{ historico: Evento[] }>(
+      `/admin/triagem/${encodeURIComponent(codigoAtual)}?servico=${servicoAtual}`,
+      { adminKey: chaveAtual() },
+    );
+    desenharTimeline(dados.historico ?? []);
+  }
+
+  el('btn-add-evento').addEventListener('click', registrarEvento);
 
   // A lista dispara isto ao clicar em "abrir" — e também quando a URL traz
   // ?codigo=&servico=, que é o link do e-mail de nova triagem.
