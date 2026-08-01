@@ -2,3 +2,7 @@
 __pycache__/
 .env
 .venv/
+
+# Configuração do Claude Code por máquina (MCP servers, plugins habilitados).
+# O settings.json fica versionado; este é o que varia de estação para estação.
+.claude/settings.local.json
