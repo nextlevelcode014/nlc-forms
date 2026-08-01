@@ -649,7 +649,12 @@ try {
   } else if (comando === 'eval') {
     const [rota, ...expr] = posicionais;
     await preparar(cli, rota ?? '/', opcoes);
-    console.log(JSON.stringify(await avaliar(cli, expr.join(' ')), null, 2));
+    // Sem --esperar, uma expressão async vira `JSON.stringify(Promise)` e sai
+    // como `{}` — silenciosamente inútil justamente quando você quer conferir
+    // algo que só existe depois de um fetch.
+    console.log(
+      JSON.stringify(await avaliar(cli, expr.join(' '), { esperar: ligada('esperar') }), null, 2),
+    );
   } else {
     console.error(`comando desconhecido: ${comando}`);
     falhou = true;
