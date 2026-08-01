@@ -575,6 +575,8 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   gap: 0.45rem;
+  /* Sem isto o texto quebra em três linhas quando a barra aperta. */
+  white-space: nowrap;
   font-size: 13px;
   color: var(--text-muted);
   cursor: pointer;

@@ -228,7 +228,11 @@ label .dica {
   margin-left: 4px;
 }
 
-input,
+/* Caixa de marcar e botão de opção ficam de fora: eles não são campos de
+   texto, e o `width: 100%` + `appearance: none` abaixo transformava um
+   checkbox num retângulo vazio do tamanho da linha. O radio escapava por ser
+   escondido em `.radios`; o primeiro checkbox do projeto não tinha essa sorte. */
+input:not([type='checkbox']):not([type='radio']),
 select,
 textarea {
   width: 100%;
@@ -244,7 +248,7 @@ textarea {
   appearance: none;
 }
 
-input:focus,
+input:not([type='checkbox']):not([type='radio']):focus,
 select:focus,
 textarea:focus {
   border-color: var(--accent);
@@ -297,6 +301,16 @@ select option {
   flex-wrap: wrap;
   gap: 0.25rem;
   margin-top: 0.4rem;
+}
+
+/* Controle nativo, pintado com a cor da marca. `accent-color` resolve os dois
+   temas de uma vez e mantém o comportamento de teclado que o navegador já dá. */
+input[type='checkbox'] {
+  inline-size: 1rem;
+  block-size: 1rem;
+  flex: none;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 .radios input[type='radio'] {
