@@ -9,6 +9,15 @@ import { defineConfig, fontProviders } from 'astro/config';
 export default defineConfig({
   publicDir: 'static',
 
+  // A porta não é preferência: ela precisa estar no ALLOWED_ORIGINS da API,
+  // senão o navegador barra por CORS antes da requisição sair. Sem esta linha o
+  // `astro dev` usava a padrão 4321 — a mesma do projeto público — e rodando os
+  // dois juntos o segundo caía em 4322, que não está liberado. O README já
+  // documentava 9080; agora o comando cumpre sozinho.
+  server: {
+    port: 9080,
+  },
+
   build: {
     format: 'file',
   },

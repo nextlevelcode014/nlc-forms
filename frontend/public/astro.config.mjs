@@ -8,6 +8,13 @@ export default defineConfig({
   // este projeto JÁ se chama public/ — `public/public/` seria confuso.
   publicDir: 'static',
 
+  // Explícita mesmo sendo a padrão do Astro: a porta faz parte do contrato com
+  // o ALLOWED_ORIGINS da API, e um padrão que muda de versão levaria o CORS
+  // junto. O painel usa 9080 pelo mesmo motivo.
+  server: {
+    port: 4321,
+  },
+
   build: {
     // `file` mantém as URLs que já foram enviadas a clientes:
     // /triagem-suporte.html continua existindo. Com o padrão `directory` elas
