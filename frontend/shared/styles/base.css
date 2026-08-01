@@ -355,7 +355,7 @@ input[type='checkbox'] {
   font-family: var(--font-text);
   font-size: 15px;
   font-weight: 600;
-  background: var(--brand-blue);
+  background: var(--acao);
   color: #fff;
   border: none;
   border-radius: var(--radius);
@@ -365,7 +365,7 @@ input[type='checkbox'] {
 }
 
 .btn:hover:not(:disabled) {
-  background: var(--brand-blue-lift);
+  background: var(--acao-lift);
   box-shadow: 0 0 20px color-mix(in oklab, var(--brand-blue) 25%, transparent);
 }
 
@@ -394,11 +394,11 @@ input[type='checkbox'] {
 /* Laranja é acento pontual: reservado para a ação que sai do sistema
    (enviar ao cliente, gerar documento) — nunca para o botão padrão. */
 .btn--destaque {
-  background: var(--brand-orange);
+  background: var(--acao-forte);
 }
 
 .btn--destaque:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--brand-orange) 85%, #fff);
+  background: var(--acao-forte-lift);
   box-shadow: 0 0 20px color-mix(in oklab, var(--brand-orange) 25%, transparent);
 }
 

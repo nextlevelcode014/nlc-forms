@@ -25,7 +25,10 @@
   /* ---------- Texto ---------- */
   --text: light-dark(#222222, #ffffff);
   --text-muted: light-dark(#555555, #9aa0ac);
-  --text-faint: light-dark(#767c86, #6a7285);
+  /* Ambos medidos em 4,5:1 com marca-nextlevelcode/contraste.mjs. Os valores
+     anteriores (#767c86 / #6a7285) davam 4,20 e 4,22 — reprovavam justamente
+     onde este token mais aparece: rodapé, carimbo de hora, legenda. */
+  --text-faint: light-dark(#6a7285, #757d90);
 
   /* ---------- Traços ---------- */
   --line: light-dark(#dddddd, #16203a);
@@ -39,6 +42,18 @@
   --accent-quiet: light-dark(#e3f0fd, #0e1e35);
   --hot: light-dark(#b34e00, #ff7a00);
   --hot-quiet: light-dark(#fff0e0, #2a1605);
+
+  /* ---------- Preenchimento de botão ----------
+     Não usam `light-dark()` de propósito: o contraste que importa aqui é com o
+     texto BRANCO por cima, não com o fundo da página — e ele não muda de tema.
+     Os tokens `--accent`/`--hot` servem a texto sobre fundo; usá-los como
+     preenchimento deixava o botão em 3,1:1 no escuro (`#2196f3` com branco) e o
+     destaque em 2,6:1, que é exatamente o que o guia da marca adverte.
+     Medidos com marca-nextlevelcode/contraste.mjs: 5,75:1 e 5,24:1. */
+  --acao: #1565c0;
+  --acao-lift: #1976d2;
+  --acao-forte: #b34e00;
+  --acao-forte-lift: #c25604;
 
   /* ---------- Estado ---------- */
   --ok: light-dark(#1b7f4d, #22c55e);

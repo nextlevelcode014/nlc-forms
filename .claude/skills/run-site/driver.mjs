@@ -389,14 +389,27 @@ const auditoria = (aberto) => `(() => {
   // ── Palavras coladas ──────────────────────────────────────
   // O Astro descarta o espaço antes de uma tag inline quando há quebra de linha
   // no .astro. É o erro mais comum de template neste stack.
-  document.querySelectorAll('p a, p strong, p em, p code, li a, li strong, label span, h1 span').forEach(el => {
+  // A lista já deixou passar um caso real: "algo comoNLC-XXXX-XXXX" numa <li>
+  // com <span>, que não estava coberta. Agora vale para qualquer filho inline
+  // dos contêineres de texto, em vez de uma lista de pares mantida à mão.
+  // Espaço posto no CSS conta como espaço. O .secao__num separa o "01" do
+  // título com margin-right, e sem esta ressalva a checagem acusava doze
+  // "palavras coladas" que na tela estão perfeitamente separadas — ruído que
+  // faz a auditoria inteira perder credibilidade.
+  const folga = (el, lado) => {
+    const cs = getComputedStyle(el);
+    return parseFloat(cs['margin' + lado]) > 1 || parseFloat(cs['padding' + lado]) > 1;
+  };
+
+  document.querySelectorAll('p :is(a,strong,em,code,span,b,i), li :is(a,strong,em,code,span,b,i), h1 span, label span').forEach(el => {
+    if (getComputedStyle(el).display !== 'inline') return; // bloco já quebra linha
     const antes = el.previousSibling, depois = el.nextSibling, t = el.textContent;
     // Uma letra só abrindo a palavra é destaque de sigla, não espaço perdido.
     const sigla = t.length === 1 &&
       (!antes || antes.nodeType !== 3 || /[^\\p{L}\\p{N}]$/u.test(antes.textContent));
-    if (antes?.nodeType === 3 && /[\\p{L}\\p{N}]$/u.test(antes.textContent) && /^[\\p{L}\\p{N}]/u.test(t))
+    if (!folga(el, 'Left') && antes?.nodeType === 3 && /[\\p{L}\\p{N}]$/u.test(antes.textContent) && /^[\\p{L}\\p{N}]/u.test(t))
       p.push('palavra colada: …' + antes.textContent.slice(-12) + '⟨' + t.slice(0,12) + '⟩');
-    if (!sigla && depois?.nodeType === 3 && /[\\p{L}\\p{N}]$/u.test(t) && /^[\\p{L}\\p{N}]/u.test(depois.textContent))
+    if (!sigla && !folga(el, 'Right') && depois?.nodeType === 3 && /[\\p{L}\\p{N}]$/u.test(t) && /^[\\p{L}\\p{N}]/u.test(depois.textContent))
       p.push('palavra colada: ⟨' + t.slice(-12) + '⟩' + depois.textContent.slice(0,12) + '…');
   });
 

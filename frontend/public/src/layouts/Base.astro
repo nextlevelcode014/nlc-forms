@@ -8,9 +8,11 @@ import '@nlc/shared/styles/base.css';
 interface Props {
   titulo: string;
   descricao?: string;
+  /** Container mais largo, para a home. Os formulários seguem estreitos. */
+  largo?: boolean;
 }
 
-const { titulo, descricao } = Astro.props;
+const { titulo, descricao, largo = false } = Astro.props;
 ---
 
 <!doctype html>
@@ -22,15 +24,16 @@ const { titulo, descricao } = Astro.props;
     {descricao && <meta name="description" content={descricao} />}
     <link rel="icon" type="image/png" href="/favicon.png" />
 
-    <!-- Formulário de cliente: não deve aparecer em busca. -->
-    <meta name="robots" content="noindex, nofollow" />
+    <!-- Formulários e acompanhamento carregam dado de cliente e não devem
+         aparecer em busca. A home é a exceção: ela é a vitrine. -->
+    <meta name="robots" content={Astro.url.pathname === '/' ? 'index, follow' : 'noindex, nofollow'} />
 
     <Font cssVariable="--font-display" preload />
     <Font cssVariable="--font-body" preload />
   </head>
 
   <body>
-    <main class="container">
+    <main class:list={['container', { 'container--wide': largo }]}>
       <Cabecalho href="https://nextlevelcode.pro" />
       <slot />
     </main>

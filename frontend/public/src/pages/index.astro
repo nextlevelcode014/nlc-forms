@@ -1,136 +1,462 @@
 ---
 import Base from '../layouts/Base.astro';
 
+/*
+  A vitrine. Antes esta página era um atalho para os três formulários — inútil
+  para quem chega, porque cada formulário exige um link de uso único que só eu
+  envio. Agora ela explica o que é feito e como, e oferece a única ação que o
+  visitante realmente pode executar sozinho: acompanhar um atendimento.
+
+  Os itens de cada serviço espelham o catálogo usado nos orçamentos. São duas
+  listas, e é a única duplicação que aceitei: o catálogo tem preço e é interno,
+  esta página é pública e não fala de preço.
+*/
 const servicos = [
   {
-    href: '/triagem-suporte.html',
-    icone: '🛠',
-    titulo: 'suporte técnico',
-    descricao: 'Diagnóstico, limpeza, formatação, upgrades e outros',
+    id: 'suporte',
+    numero: '01',
+    titulo: 'Suporte técnico',
+    resumo:
+      'O computador que trava, esquenta, não liga ou ficou lento. Diagnóstico honesto antes de qualquer orçamento.',
+    itens: [
+      'Diagnóstico técnico e orçamento sem compromisso',
+      'Remoção de vírus e malware',
+      'Limpeza interna e troca de pasta térmica',
+      'Instalação de SSD e memória RAM',
+      'Formatação e reinstalação do sistema',
+      'Backup e migração de arquivos',
+      'Configuração de rede, Wi-Fi e impressoras',
+      'Montagem e configuração de máquina nova',
+    ],
+    comoFunciona: [
+      'Você me conta o problema pelo WhatsApp ou e-mail.',
+      'Eu abro o atendimento e mando um link com as perguntas certas para o seu caso.',
+      'Diagnostico antes de orçar — se não compensar consertar, eu digo.',
+      'Atendimento remoto quando dá, presencial quando o hardware exige.',
+    ],
   },
   {
-    href: '/triagem-seguranca.html',
-    icone: '🔐',
-    titulo: 'segurança & privacidade',
-    descricao: 'Proteção digital, 2FA, gerenciador de senhas, VPN',
+    id: 'seguranca',
+    numero: '02',
+    titulo: 'Segurança & privacidade',
+    resumo:
+      'Conta invadida, golpe pelo WhatsApp, senha repetida em tudo. Também o antes: deixar sua vida digital difícil de invadir.',
+    itens: [
+      'Diagnóstico de segurança digital',
+      'Gerenciador de senhas configurado e ensinado',
+      'Verificação em duas etapas nas contas que importam',
+      'Backup automatizado que você não precisa lembrar de fazer',
+      'VPN e navegação sem rastreadores',
+      'Proteção reforçada do sistema operacional',
+      'Treinamento de boas práticas, em linguagem de gente',
+      'Assessoria mensal, se preferir acompanhamento contínuo',
+    ],
+    comoFunciona: [
+      'Levanto o que você usa hoje e onde estão os riscos reais — não os teóricos.',
+      'Priorizo pelo que te protege mais com menos esforço.',
+      'Configuro junto com você, explicando cada passo.',
+      'Você sai sabendo operar sozinho. Segurança que depende de mim não é segurança.',
+    ],
   },
   {
-    href: '/triagem-desenvolvimento.html',
-    icone: '⚡',
-    titulo: 'dev & automação',
-    descricao: 'Sites, sistemas, automações e soluções sob medida',
+    id: 'desenvolvimento',
+    numero: '03',
+    titulo: 'Desenvolvimento & automação',
+    resumo:
+      'Site, sistema interno ou aquela planilha que virou processo. Software sob medida, sem template genérico.',
+    itens: [
+      'Landing page e site institucional',
+      'Sistema web sob medida e painéis administrativos',
+      'Área de login e autenticação',
+      'API REST e integração com serviços externos',
+      'Automação de processos repetitivos',
+      'Formulários e coleta de dados',
+      'Migração de dados de sistema antigo',
+      'Hospedagem, implantação e manutenção',
+    ],
+    comoFunciona: [
+      'Conversa sobre o problema, não sobre a tecnologia.',
+      'Escopo escrito, com prazo e valor fechados antes de começar.',
+      'Você acompanha o andamento pelo código, sem precisar me cobrar.',
+      'Entrego com o código e a documentação nas suas mãos.',
+    ],
   },
 ];
 ---
 
-<Base titulo="NextLevelCode — Triagem">
-  <div class="intro">
-    <h1>triagem</h1>
-    <p>Selecione o formulário correspondente ao serviço desejado.</p>
-  </div>
+<Base
+  titulo="NextLevelCode — Suporte técnico, segurança e desenvolvimento"
+  descricao="Suporte técnico, segurança digital e desenvolvimento sob medida. Diagnóstico honesto, orçamento fechado e acompanhamento do atendimento em tempo real."
+  largo
+>
+  <section class="hero">
+    <p class="hero__etiqueta">Liberdade, privacidade e segurança</p>
+    <h1 class="hero__titulo">
+      Seu computador, suas contas e seus sistemas — cuidados por quem explica o que
+      está fazendo.
+    </h1>
+    <p class="hero__texto">
+      Atendo pessoas e pequenos negócios em três frentes: consertar o que quebrou,
+      proteger o que importa e construir o que falta. Sem jargão, sem pacote fechado
+      que você não entende, e sem prender ninguém a mim.
+    </p>
 
-  <nav class="cartoes">
+    <div class="hero__acoes">
+      <a class="btn" href="#acompanhar">Acompanhar meu atendimento →</a>
+      <a class="btn btn--secundario" href="mailto:work@nextlevelcode.pro">Falar comigo</a>
+    </div>
+  </section>
+
+  <div class="rule"></div>
+
+  <section aria-labelledby="titulo-servicos">
+    <h2 class="secao__titulo" id="titulo-servicos">O que eu faço</h2>
+
     {
       servicos.map((servico) => (
-        <a class="cartao" href={servico.href}>
-          <span class="cartao__icone" aria-hidden="true">
-            {servico.icone}
-          </span>
-          <span class="cartao__corpo">
-            <span class="cartao__titulo">{servico.titulo}</span>
-            <span class="cartao__descricao">{servico.descricao}</span>
-          </span>
-          <span class="cartao__seta" aria-hidden="true">
-            →
-          </span>
-        </a>
+        <article class="servico" id={servico.id}>
+          <header class="servico__topo">
+            <span class="servico__numero" aria-hidden="true">
+              {servico.numero}
+            </span>
+            <div>
+              <h3 class="servico__titulo">{servico.titulo}</h3>
+              <p class="servico__resumo">{servico.resumo}</p>
+            </div>
+          </header>
+
+          <div class="servico__colunas">
+            <div>
+              <p class="rotulo">Inclui</p>
+              <ul class="lista">
+                {servico.itens.map((item) => (
+                  <li>{item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <p class="rotulo">Como é executado</p>
+              <ol class="passos">
+                {servico.comoFunciona.map((passo) => (
+                  <li>{passo}</li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        </article>
       ))
     }
-  </nav>
+  </section>
 
-  <p class="aviso">
-    Você recebeu um link específico? Use ele diretamente — este é apenas um atalho.
-  </p>
-  <p class="rodape-acao">
-    Já tem um código? <a href="/acompanhar.html">acompanhe seu atendimento</a>
-  </p>
+  <div class="rule"></div>
+
+  <section aria-labelledby="titulo-atendimento">
+    <h2 class="secao__titulo" id="titulo-atendimento">Como o atendimento acontece</h2>
+    <ol class="fluxo">
+      <li>
+        <strong>Você me procura</strong> pelo WhatsApp ou e-mail e conta o que está
+        acontecendo.
+      </li>
+      <li>
+        <strong>Eu abro o atendimento</strong> e envio um link com as perguntas do seu
+        caso. O link é só seu e vale uma vez.
+      </li>
+      <li>
+        <strong>Você recebe um código</strong> no fim do formulário — algo como{' '}
+        <span class="mono">NLC-XXXX-XXXX</span>.
+      </li>
+      <li>
+        <strong>Acompanha pelo código</strong> a qualquer momento, sem precisar me
+        perguntar como está. Cada passo aparece com data e hora.
+      </li>
+      <li>
+        <strong>Recebe o orçamento e o relatório</strong> em PDF, com o que foi
+        diagnosticado, o que foi feito e o que recomendo daqui pra frente.
+      </li>
+    </ol>
+  </section>
+
+  <div class="rule"></div>
+
+  <section id="acompanhar" aria-labelledby="titulo-acompanhar">
+    <h2 class="secao__titulo" id="titulo-acompanhar">Acompanhar um atendimento</h2>
+    <p class="texto-secao">
+      Já tem um código? Veja em que pé está o seu atendimento, com o histórico
+      completo — e mande um recado por ali se lembrar de algo.
+    </p>
+
+    {/*
+      GET puro para /acompanhar.html?codigo=…, que a página já lê. Sem JavaScript:
+      um formulário que só monta uma URL não precisa de script, e assim ele
+      funciona antes de o JS carregar — ou se ele falhar.
+    */}
+    <form class="busca-codigo" action="/acompanhar.html" method="get">
+      <div class="campo">
+        <label for="codigo">Código do atendimento</label>
+        <input
+          type="text"
+          id="codigo"
+          name="codigo"
+          placeholder="NLC-XXXX-XXXX"
+          autocomplete="off"
+          spellcheck="false"
+          required
+        />
+      </div>
+      <button type="submit" class="btn">Acompanhar →</button>
+    </form>
+  </section>
+
+  <div class="rule"></div>
+
+  <section class="contato">
+    <h2 class="secao__titulo">Vamos conversar</h2>
+    <p class="texto-secao">
+      Descreva o problema em uma frase — eu digo se resolvo, quanto custa e em quanto
+      tempo. Se não for a minha praia, indico quem faz.
+    </p>
+    <p class="contato__acoes">
+      <a class="btn btn--destaque" href="mailto:work@nextlevelcode.pro">
+        work@nextlevelcode.pro
+      </a>
+    </p>
+  </section>
 </Base>
 
 <style>
-  .cartoes {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+  /* ── Hero ─────────────────────────────────────────────── */
+
+  .hero {
+    padding-block: 1rem 2.5rem;
   }
 
-  .cartao {
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
-    background: var(--bg-raised);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 1.5rem;
-    text-decoration: none;
-    color: var(--text);
-    transition: border-color 0.15s, background 0.15s, transform 0.15s;
-  }
-
-  .cartao:hover {
-    border-color: var(--accent);
-    background: var(--accent-quiet);
-    transform: translateY(-1px);
-  }
-
-  .cartao:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-
-  .cartao__icone {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    flex-shrink: 0;
-    font-size: 24px;
-    background: var(--accent-quiet);
-    border-radius: var(--radius);
-  }
-
-  .cartao__corpo {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .cartao__titulo {
+  .hero__etiqueta {
     font-family: var(--font-heading);
-    font-size: 17px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-eyebrow);
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+
+  .hero__titulo {
+    font-family: var(--font-heading);
+    font-size: clamp(28px, 4.5vw, 42px);
+    font-weight: 700;
+    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-tight);
+    max-width: 22ch;
+  }
+
+  .hero__texto {
+    margin-top: 1.25rem;
+    color: var(--text-muted);
+    max-width: 62ch;
+  }
+
+  .hero__acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 2rem;
+  }
+
+  /* `.btn` foi escrito para <button>; como <a> ele precisa do display e da
+     remoção do sublinhado para não virar um link com cara de botão. */
+  .hero__acoes .btn,
+  .contato__acoes .btn {
+    display: inline-block;
+    text-decoration: none;
+  }
+
+  /* ── Seções ───────────────────────────────────────────── */
+
+  .secao__titulo {
+    font-family: var(--font-heading);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-eyebrow);
+    color: var(--text-muted);
+    margin-block: 2.5rem 1.5rem;
+  }
+
+  .rotulo {
+    font-family: var(--font-heading);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-eyebrow);
+    /* --text-faint dá 4,04:1 e reprova para texto pequeno; --text-muted passa. */
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+  }
+
+  .texto-secao {
+    color: var(--text-muted);
+    max-width: 62ch;
+    margin-bottom: 1.5rem;
+  }
+
+  /* ── Serviços ─────────────────────────────────────────── */
+
+  .servico + .servico {
+    margin-top: 3rem;
+  }
+
+  .servico__topo {
+    display: flex;
+    gap: 1.25rem;
+    align-items: baseline;
+  }
+
+  /* Laranja aqui e quase em nenhum outro lugar da página: numeração é um dos
+     usos pontuais que o guia da marca reserva a ele. Espalhá-lo pelas
+     divisórias o esvaziaria de significado. */
+  .servico__numero {
+    font-family: var(--font-heading);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--hot);
+    flex: none;
+  }
+
+  .servico__titulo {
+    font-family: var(--font-heading);
+    font-size: clamp(20px, 2.5vw, 26px);
     font-weight: 600;
+    letter-spacing: var(--tracking-tight);
   }
 
-  .cartao__descricao {
+  .servico__resumo {
+    margin-top: 0.5rem;
     color: var(--text-muted);
-    font-size: 14px;
-    margin-top: 0.2rem;
+    max-width: 60ch;
   }
 
-  .cartao__seta {
-    margin-left: auto;
+  .servico__colunas {
+    display: grid;
+    gap: 2rem;
+    margin-top: 1.75rem;
+    padding-inline-start: calc(1.25rem + 2ch);
+  }
+
+  @media (min-width: 760px) {
+    .servico__colunas {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .servico__colunas {
+      padding-inline-start: 0;
+    }
+  }
+
+  /* ── Listas ───────────────────────────────────────────── */
+
+  .lista,
+  .passos {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    font-size: 15px;
     color: var(--text-muted);
-    font-size: 20px;
-    transition: color 0.15s;
   }
 
-  .cartao:hover .cartao__seta {
+  .lista li,
+  .passos li {
+    position: relative;
+    padding-inline-start: 1.4rem;
+  }
+
+  /* O marcador repete os 58° do traço do logo. É a assinatura da marca no menor
+     elemento possível — a unidade vem de repetir o mesmo ângulo, não de
+     inventar um enfeite novo a cada bloco. */
+  .lista li::before {
+    content: '';
+    position: absolute;
+    inset-inline-start: 0;
+    inset-block-start: 0.55em;
+    inline-size: 0.65rem;
+    block-size: 1px;
+    background: var(--accent);
+    transform: rotate(calc(var(--angle) * -1));
+  }
+
+  .passos {
+    counter-reset: passo;
+  }
+
+  .passos li {
+    counter-increment: passo;
+  }
+
+  .passos li::before {
+    content: counter(passo);
+    position: absolute;
+    inset-inline-start: 0;
+    font-family: var(--font-heading);
+    font-size: 12px;
+    font-weight: 700;
     color: var(--accent);
   }
 
-  .aviso {
-    margin-top: 2rem;
-    text-align: center;
+  /* ── Fluxo do atendimento ─────────────────────────────── */
+
+  .fluxo {
+    list-style: none;
+    counter-reset: etapa;
+    display: grid;
+    gap: 1rem;
+    max-width: 70ch;
+  }
+
+  .fluxo li {
+    counter-increment: etapa;
+    position: relative;
+    padding-inline-start: 2.5rem;
     color: var(--text-muted);
+  }
+
+  .fluxo li::before {
+    content: counter(etapa, decimal-leading-zero);
+    position: absolute;
+    inset-inline-start: 0;
+    font-family: var(--font-heading);
     font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .fluxo strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* ── Busca por código ─────────────────────────────────── */
+
+  .busca-codigo {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    max-width: 32rem;
+  }
+
+  .busca-codigo .campo {
+    flex: 1 1 16rem;
+    margin: 0;
+  }
+
+  .contato {
+    padding-block-end: 1rem;
+  }
+
+  .contato__acoes {
+    margin-top: 1.5rem;
   }
 </style>
