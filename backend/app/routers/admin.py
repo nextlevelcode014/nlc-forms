@@ -366,7 +366,11 @@ def listar_triagens(
         params: list = []
 
         if search:
-            where_clauses.append("(codigo LIKE ? OR nome LIKE ? OR email LIKE ?)")
+            # Qualificado com `t.`: `execucao` também tem uma coluna `codigo`, e
+            # com o LEFT JOIN abaixo o nome cru fica ambíguo — o SQLite responde
+            # "ambiguous column name" e a busca inteira vira 500. Estava assim
+            # desde que a lista nasceu, sem teste que passasse por este caminho.
+            where_clauses.append("(t.codigo LIKE ? OR t.nome LIKE ? OR t.email LIKE ?)")
             like = f"%{search}%"
             params.extend([like, like, like])
 

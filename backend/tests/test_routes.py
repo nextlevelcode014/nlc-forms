@@ -743,3 +743,48 @@ class TestEventoManual:
 
     def test_exige_chave(self):
         assert client.post("/admin/historico", json={"codigo": "X", "detalhe": "y"}).status_code == 401
+
+
+class TestBuscaNaLista:
+    """A busca da lista respondia 500 desde que a tela nasceu.
+
+    `execucao` tem uma coluna `codigo` e o LEFT JOIN a traz para o escopo, então
+    o `WHERE codigo LIKE ?` sem qualificação era ambíguo. Nenhum teste passava
+    por aqui, e o erro só aparecia ao digitar algo no campo de busca.
+    """
+
+    def _triagem(self, nome, email):
+        cliente = criar_cliente(nome=nome, email=email)
+        token = criar_token("suporte", cliente_id=cliente)
+        payload = {**TRIAGEM_SUPORTE_VALIDA, "nome": nome}
+        return client.post(f"/triagem/suporte?token={token}", json=payload).json()["codigo"]
+
+    def test_busca_por_nome(self):
+        self._triagem("Fábio Rocha", "fabio@test.com")
+        self._triagem("Outra Pessoa", "outra@test.com")
+
+        r = client.get("/admin/triagens?search=Fábio", headers=ADMIN)
+        assert r.status_code == 200
+        assert r.json()["total"] == 1
+
+    def test_busca_por_email(self):
+        self._triagem("Fábio Rocha", "fabio@test.com")
+        r = client.get("/admin/triagens?search=fabio@test", headers=ADMIN)
+        assert r.json()["total"] == 1
+
+    def test_busca_por_codigo(self):
+        codigo = self._triagem("Fábio Rocha", "fabio@test.com")
+        r = client.get(f"/admin/triagens?search={codigo}", headers=ADMIN)
+        assert r.json()["total"] == 1
+
+    def test_busca_combinada_com_status(self):
+        """Os dois filtros no mesmo WHERE — onde a ambiguidade aparecia."""
+        codigo = self._triagem("Fábio Rocha", "fabio@test.com")
+        client.post(
+            "/admin/execucao",
+            json={"codigo": codigo, "servico": "suporte", "status": "concluido", "itens": []},
+            headers=JSON_ADMIN,
+        )
+        r = client.get("/admin/triagens?search=Fábio&status=concluido", headers=ADMIN)
+        assert r.status_code == 200
+        assert r.json()["total"] == 1
