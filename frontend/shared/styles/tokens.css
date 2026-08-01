@@ -1,0 +1,99 @@
+/*
+  Tokens da marca NextLevelCode.
+
+  Fonte da verdade: guia-marca.md na raiz do repositório. Antes deste arquivo
+  existiam três paletas em paralelo (páginas públicas, admin e o gerador de PDF),
+  todas divergindo do guia. Qualquer cor nova entra aqui, nunca no componente.
+
+  Os dois temas saem de uma declaração só, via `light-dark()`: o navegador escolhe
+  conforme o `color-scheme` em vigor, então não há duas listas para divergirem.
+*/
+
+:root {
+  /* ---------- Marca (imutável, nunca muda entre temas) ---------- */
+  --brand-navy: #020511;
+  --brand-blue: #2196f3;
+  --brand-blue-lift: #4fc3f7;
+  --brand-orange: #ff7a00;
+
+  /* ---------- Superfícies ---------- */
+  --bg: light-dark(#ffffff, #020511);
+  --bg-subtle: light-dark(#f4f7fa, #060b19);
+  --bg-raised: light-dark(#ffffff, #0a1022);
+  --bg-inset: light-dark(#eef2f7, #0d1428);
+
+  /* ---------- Texto ---------- */
+  --text: light-dark(#222222, #ffffff);
+  --text-muted: light-dark(#555555, #9aa0ac);
+  --text-faint: light-dark(#767c86, #6a7285);
+
+  /* ---------- Traços ---------- */
+  --line: light-dark(#dddddd, #16203a);
+  --line-strong: light-dark(#c4cad3, #24314f);
+
+  /* ---------- Acentos ----------
+     Os valores do tema claro são ESCURECIDOS de propósito: o azul e o laranja
+     crus da marca dão 3,1:1 e 2,6:1 sobre branco, abaixo do mínimo de 4,5:1.
+     Use `--brand-*` só em preenchimento, onde contraste de texto não se aplica. */
+  --accent: light-dark(#1565c0, #2196f3);
+  --accent-quiet: light-dark(#e3f0fd, #0e1e35);
+  --hot: light-dark(#b34e00, #ff7a00);
+  --hot-quiet: light-dark(#fff0e0, #2a1605);
+
+  /* ---------- Estado ---------- */
+  --ok: light-dark(#1b7f4d, #22c55e);
+  --ok-quiet: light-dark(#e6f6ed, #062314);
+  --erro: light-dark(#c62828, #ef4444);
+  --erro-quiet: light-dark(#fdeaea, #2a0d0d);
+
+  /* ---------- Tipografia ----------
+     As famílias vêm da Fonts API do Astro (astro.config.mjs), que baixa os
+     arquivos no build e serve do próprio domínio — nenhuma requisição do
+     visitante sai para o Google. */
+  --font-heading: var(--font-display, 'Poppins'), ui-sans-serif, system-ui, sans-serif;
+  --font-text: var(--font-body, 'Inter'), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+
+  --tracking-eyebrow: 0.18em;
+  --tracking-tight: -0.02em;
+  --tracking-tighter: -0.035em;
+  --leading-tight: 1.08;
+  --leading-normal: 1.6;
+
+  /* ---------- Geometria ----------
+     58° é o ângulo do traço do logo. Repetir esse ângulo em divisores, hovers e
+     marcadores é o que dá unidade visual — é a assinatura da marca. */
+  --angle: 58deg;
+  --radius: 4px;
+  --radius-lg: 12px;
+
+}
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+/* A régua ascendente: fio que "decola" em 58° no fim. Marca fim de bloco.
+   Use com moderação — é a raridade que a faz significar alguma coisa. */
+.rule {
+  position: relative;
+  block-size: 1px;
+  background: var(--line);
+}
+
+.rule::after {
+  content: '';
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-end: 0;
+  inline-size: 2.25rem;
+  block-size: 1px;
+  background: var(--brand-orange);
+  transform: rotate(calc(var(--angle) * -1));
+  transform-origin: 100% 100%;
+}

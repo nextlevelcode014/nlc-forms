@@ -1,0 +1,33 @@
+---
+import Base from '../layouts/Base.astro';
+import PortaoAdmin from '../components/PortaoAdmin.astro';
+import Navegacao from '../components/Navegacao.astro';
+import Clientes from '../components/Clientes.astro';
+import Atendimento from '../components/Atendimento.astro';
+import Token from '../components/Token.astro';
+---
+
+<Base titulo="Painel — NextLevelCode" largo>
+  <PortaoAdmin
+    titulo="painel de atendimento"
+    descricao="Informe a chave de admin para acessar os dados dos clientes."
+  />
+
+  {/*
+    Tudo numa página só. Cada ferramenta era um .html separado, e trocar de
+    ferramenta significava recarregar — perdendo a sessão e pedindo a chave de
+    novo. Aqui a navegação é troca de seção, então a chave é digitada uma vez.
+  */}
+  <div id="protegido" hidden>
+    <Navegacao />
+
+    <section data-secao="atendimento">
+      <Clientes />
+      <Atendimento />
+    </section>
+
+    <section data-secao="token" hidden>
+      <Token />
+    </section>
+  </div>
+</Base>

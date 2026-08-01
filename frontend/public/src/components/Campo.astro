@@ -1,0 +1,86 @@
+---
+import type { Campo } from '@nlc/shared/lib/triagem';
+
+interface Props {
+  campo: Campo;
+}
+
+const { campo } = Astro.props;
+const { nome, rotulo, tipo, obrigatorio, placeholder, opcoes } = campo;
+---
+
+<div class="campo">
+  {
+    /* No grupo de radio o <label> de cima é só um título — não aponta para um
+       controle específico, então é <span role="group"> quem nomeia o conjunto. */
+    tipo === 'radio' ? (
+      <span class="rotulo-grupo" id={`${nome}-rotulo`}>
+        {rotulo}
+        {obrigatorio && <span class="req">*</span>}
+      </span>
+    ) : (
+      <label for={nome}>
+        {rotulo}
+        {obrigatorio ? <span class="req">*</span> : <span class="dica">(opcional)</span>}
+      </label>
+    )
+  }
+
+  {
+    tipo === 'radio' && (
+      <div class="radios" role="radiogroup" aria-labelledby={`${nome}-rotulo`}>
+        {opcoes?.map((opcao, i) => (
+          <Fragment>
+            <input
+              type="radio"
+              id={`${nome}-${i}`}
+              name={nome}
+              value={opcao}
+              required={obrigatorio && i === 0}
+            />
+            <label for={`${nome}-${i}`}>{opcao}</label>
+          </Fragment>
+        ))}
+      </div>
+    )
+  }
+
+  {
+    tipo === 'select' && (
+      <select id={nome} name={nome} required={obrigatorio}>
+        <option value="" disabled selected>
+          Selecione
+        </option>
+        {opcoes?.map((opcao) => <option>{opcao}</option>)}
+      </select>
+    )
+  }
+
+  {
+    tipo === 'textarea' && (
+      <textarea id={nome} name={nome} placeholder={placeholder} required={obrigatorio} />
+    )
+  }
+
+  {
+    (tipo === 'texto' || tipo === 'email' || tipo === 'tel') && (
+      <input
+        type={tipo === 'texto' ? 'text' : tipo}
+        id={nome}
+        name={nome}
+        placeholder={placeholder}
+        required={obrigatorio}
+      />
+    )
+  }
+</div>
+
+<style>
+  .rotulo-grupo {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 0.4rem;
+  }
+</style>

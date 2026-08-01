@@ -1,0 +1,438 @@
+/*
+  Estilo exclusivo do painel: cartões, tabelas, tags e barras de ação.
+  O que o público também usa mora em @nlc/shared/styles/base.css.
+*/
+
+/* ── Selo do cabeçalho ────────────────────────────────────── */
+
+.selo {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--hot);
+  border: 1px solid color-mix(in oklab, var(--brand-orange) 35%, transparent);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+}
+
+/* ── Cartão ───────────────────────────────────────────────── */
+
+.cartao {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.cartao__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.cartao__titulo {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ── Portão de login ──────────────────────────────────────── */
+
+.portao {
+  max-width: 420px;
+  margin: 3rem auto;
+}
+
+.portao h1 {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  margin-bottom: 0.4rem;
+}
+
+.portao__texto {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.btn--largo {
+  width: 100%;
+}
+
+/* ── Busca e filtros ──────────────────────────────────────── */
+
+.busca {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.busca input {
+  flex: 1 1 240px;
+}
+
+.busca select {
+  flex: 0 1 200px;
+}
+
+.filtros {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.filtros .campo {
+  margin-bottom: 0;
+}
+
+/* ── Mensagem de estado ───────────────────────────────────── */
+
+.aviso-estado {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 3rem 1rem;
+}
+
+/* ── Cabeçalho do cliente ─────────────────────────────────── */
+
+.cliente {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.cliente__nome {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.cliente__codigo {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--hot);
+  letter-spacing: 0.04em;
+}
+
+.cliente__meta {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+}
+
+.tag-servico {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-quiet);
+  border-radius: var(--radius);
+  padding: 0.15rem 0.55rem;
+  margin-top: 0.5rem;
+}
+
+.divisoria {
+  height: 1px;
+  background: var(--line);
+  margin: 1rem 0;
+}
+
+/* ── Grade da triagem ─────────────────────────────────────── */
+
+.grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.grade__item--largo {
+  grid-column: 1 / -1;
+}
+
+.grade__rotulo {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 0.2rem;
+}
+
+.grade__valor {
+  font-size: 14px;
+  color: var(--text);
+  /* Resposta do cliente pode vir com quebras de linha — preservá-las. */
+  white-space: pre-wrap;
+}
+
+/* ── Tabelas ──────────────────────────────────────────────── */
+
+.tabela-rolagem {
+  overflow-x: auto;
+}
+
+/* Sem um piso de largura a tabela encolhe até caber e o `overflow-x` nunca
+   entra em ação: no celular cada célula virava uma coluna de duas letras.
+   Com o piso, ela transborda de propósito e o contêiner rola. */
+.tabela-rolagem table {
+  min-width: 560px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-faint);
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+td {
+  padding: 0.7rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr:hover {
+  background: var(--bg-inset);
+}
+
+.col-valor {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.col-acao {
+  width: 1%;
+  text-align: right;
+  /* `width: 1%` encolhe a coluna até o conteúdo. Sem o nowrap, uma célula com
+     mais de uma ação quebra e os botões empilham em coluna. */
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--hot);
+  /* O código é um identificador só: quebrado em "NLC-" / "XBCH-" / "5WN1" ele
+     deixa de ser legível de relance, que é a única função dele na lista. */
+  white-space: nowrap;
+}
+
+.cliente-nome {
+  font-weight: 500;
+}
+
+.cliente-email {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Tags de status ───────────────────────────────────────── */
+
+.tag {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius);
+  padding: 0.15rem 0.55rem;
+  white-space: nowrap;
+}
+
+.tag--pendente {
+  color: var(--hot);
+  background: var(--hot-quiet);
+}
+
+.tag--em_andamento {
+  color: var(--accent);
+  background: var(--accent-quiet);
+}
+
+.tag--concluido {
+  color: var(--ok);
+  background: var(--ok-quiet);
+}
+
+.tag--sem_atendimento {
+  color: var(--text-faint);
+  background: var(--bg-inset);
+}
+
+/* ── Orçamento ────────────────────────────────────────────── */
+
+.linha-item {
+  display: grid;
+  grid-template-columns: 1.4fr 1.6fr 0.5fr 0.8fr auto;
+  gap: 0.5rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.linha-item .campo {
+  margin-bottom: 0;
+}
+
+.dica-catalogo {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.vazio {
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 13px;
+  padding: 1.5rem 0;
+}
+
+.btn-remover {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  border-radius: var(--radius);
+}
+
+.btn-remover:hover {
+  color: var(--erro);
+}
+
+.total {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 1rem;
+  margin-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.total__rotulo {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.total__valor {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Barra de ações ───────────────────────────────────────── */
+
+.acoes {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  /* Margem nos dois lados: só com `margin-top` os botões encostavam no card
+     seguinte, e "Enviar PDF" parecia pertencer ao bloco de baixo. */
+  margin: 1.5rem 0 2rem;
+}
+
+/* ── Paginação ────────────────────────────────────────────── */
+
+.paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.paginacao__info {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.contagem {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.btn-sm {
+  font-size: 13px;
+  padding: 0.5rem 1rem;
+}
+
+.link-abrir {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.link-abrir:hover {
+  text-decoration: underline;
+}
+
+/* Ação em linha de tabela. É <button> e não <a>: dispara JS, não navega —
+   e assim já vem com semântica de botão para leitor de tela e teclado. */
+.link-acao {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--radius);
+}
+
+.link-acao:hover {
+  text-decoration: underline;
+}
+
+.link-acao:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (max-width: 900px) {
+  .filtros,
+  .linha-item {
+    grid-template-columns: 1fr;
+  }
+}

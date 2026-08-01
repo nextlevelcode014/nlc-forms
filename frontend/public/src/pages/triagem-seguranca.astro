@@ -1,0 +1,9 @@
+---
+import Base from '../layouts/Base.astro';
+import FormularioTriagem from '../components/FormularioTriagem.astro';
+import { SEGURANCA } from '@nlc/shared/lib/triagem';
+---
+
+<Base titulo="Segurança & Privacidade — NextLevelCode">
+  <FormularioTriagem formulario={SEGURANCA} />
+</Base>

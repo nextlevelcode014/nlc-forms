@@ -1,0 +1,498 @@
+/*
+  Base compartilhada pelos dois projetos (público e admin).
+
+  Só entra aqui o que os dois usam de fato: reset, container, cabeçalho/rodapé,
+  formulários e feedback. Estilo exclusivo de um lado fica no projeto dele.
+
+  Nenhum valor de cor literal — tudo sai de tokens.css. Se você precisou de um
+  hex aqui, o token que faltava é que deveria ter sido criado.
+*/
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-text);
+  font-size: 16px;
+  line-height: var(--leading-normal);
+  min-height: 100vh;
+  padding: 2rem 1rem 4rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Container ────────────────────────────────────────────── */
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  background: color-mix(in oklab, var(--bg-raised) 60%, transparent);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem 2.5rem 3rem;
+  box-shadow: 0 0 60px rgb(0 0 0 / 0.4);
+  /* `position: relative` fica: elementos posicionados dentro do card se
+     ancoram nele. O `overflow: hidden` saiu junto com a fita — ele existia só
+     para o pseudo-elemento não vazar dos cantos arredondados, e cortar tudo
+     que passe da borda é efeito colateral demais para um card comum. */
+  position: relative;
+}
+
+.container--wide {
+  max-width: 1100px;
+}
+
+/* ── Cabeçalho ────────────────────────────────────────────── */
+
+.cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 2.5rem;
+}
+
+.cabecalho__link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+}
+
+.cabecalho__link:hover .cabecalho__nome {
+  color: var(--accent);
+}
+
+.cabecalho__marca {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.cabecalho__nome {
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: var(--tracking-tight);
+  transition: color 0.15s;
+}
+
+.cabecalho__extra {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* ── Título da página ─────────────────────────────────────── */
+
+.intro {
+  margin-bottom: 2rem;
+}
+
+.intro h1 {
+  font-family: var(--font-heading);
+  font-size: 27px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: var(--tracking-tighter);
+  line-height: var(--leading-tight);
+  margin-bottom: 0.35rem;
+}
+
+.intro p {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.obrigatorio {
+  color: var(--hot);
+}
+
+/* ── Estados de bloqueio / vazio ──────────────────────────── */
+
+.estado {
+  margin: 3rem auto;
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg-subtle);
+}
+
+.estado__icone {
+  font-size: 28px;
+  margin-bottom: 1rem;
+  opacity: 0.7;
+}
+
+.estado__titulo {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+  color: var(--text);
+}
+
+.estado__texto {
+  font-size: 14.5px;
+  color: var(--text-muted);
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.estado__dica {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin: 1rem auto 0;
+  max-width: 380px;
+}
+
+/* ── Formulário ───────────────────────────────────────────── */
+
+.secao {
+  padding: 1.75rem 1.25rem;
+  background: var(--bg-subtle);
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  transition: background 0.15s;
+}
+
+.secao:hover {
+  background: var(--bg-inset);
+}
+
+.secao__rotulo {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 1.25rem;
+}
+
+.secao__num {
+  color: var(--hot);
+  margin-right: 0.35rem;
+}
+
+.campo {
+  margin-bottom: 1.1rem;
+}
+
+.campo:last-child {
+  margin-bottom: 0;
+}
+
+.campo-par {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  /* O espaçamento do par é do grid, não das margens dos filhos: o `.campo`
+     interno zera a margem, e o próprio par carrega o `margin-bottom` do ritmo.
+     Sem isso, no celular (uma coluna) o último campo do par colava no campo
+     seguinte, e o primeiro ganhava margem + gap somados. */
+  gap: 1.1rem 0.75rem;
+  margin-bottom: 1.1rem;
+}
+
+.campo-par .campo,
+.campo-par:last-child {
+  margin-bottom: 0;
+}
+
+label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+}
+
+label .req {
+  color: var(--hot);
+  margin-left: 2px;
+}
+
+label .dica {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-left: 4px;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  background: var(--bg-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-text);
+  font-size: 15px;
+  padding: 0.65rem 0.75rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand-blue) 18%, transparent);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-faint);
+}
+
+/* Marca um campo obrigatório que ficou vazio no envio. Trocado por classe e não
+   por style inline para que o reset seja um removeAttribute, não um hex solto. */
+input.invalido,
+select.invalido,
+textarea.invalido {
+  border-color: var(--erro);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.5;
+}
+
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa0ac' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.25rem;
+  cursor: pointer;
+}
+
+select option {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ── Radios como pílulas ──────────────────────────────────── */
+
+.radios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.4rem;
+}
+
+.radios input[type='radio'] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.radios label {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.radios label:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.radios input[type='radio']:checked + label {
+  color: var(--accent);
+  border-color: color-mix(in oklab, var(--brand-blue) 30%, transparent);
+  background: var(--accent-quiet);
+}
+
+/* O radio real é invisível, então o foco do teclado precisa aparecer no label —
+   sem isto a navegação por Tab fica cega nesse grupo. */
+.radios input[type='radio']:focus-visible + label {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Botões ───────────────────────────────────────────────── */
+
+.btn {
+  font-family: var(--font-text);
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--brand-blue);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.7rem 2rem;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s, opacity 0.2s;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--brand-blue-lift);
+  box-shadow: 0 0 20px color-mix(in oklab, var(--brand-blue) 25%, transparent);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn--secundario {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+}
+
+.btn--secundario:hover:not(:disabled) {
+  background: var(--bg-inset);
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
+/* Laranja é acento pontual: reservado para a ação que sai do sistema
+   (enviar ao cliente, gerar documento) — nunca para o botão padrão. */
+.btn--destaque {
+  background: var(--brand-orange);
+}
+
+.btn--destaque:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--brand-orange) 85%, #fff);
+  box-shadow: 0 0 20px color-mix(in oklab, var(--brand-orange) 25%, transparent);
+}
+
+.envio {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.envio__nota {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* ── Feedback ─────────────────────────────────────────────── */
+
+.feedback {
+  display: none;
+  margin: 1.5rem 0 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  font-size: 15px;
+}
+
+.feedback.sucesso,
+.feedback.erro {
+  display: block;
+}
+
+.feedback.sucesso {
+  color: var(--ok);
+  background: var(--ok-quiet);
+  border: 1px solid color-mix(in oklab, var(--ok) 30%, transparent);
+}
+
+.feedback.erro {
+  color: var(--erro);
+  background: var(--erro-quiet);
+  border: 1px solid color-mix(in oklab, var(--erro) 30%, transparent);
+}
+
+/* ── Rodapé ───────────────────────────────────────────────── */
+
+.rodape {
+  max-width: 680px;
+  margin: 2.5rem auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.rodape a {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.rodape a:hover {
+  color: var(--accent);
+}
+
+.rodape__links {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.rodape__links a {
+  display: flex;
+  align-items: center;
+  color: var(--text-faint);
+}
+
+.rodape__links a:hover {
+  color: var(--text);
+}
+
+/* ── Código do atendimento ────────────────────────────────── */
+
+.codigo {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--hot);
+  letter-spacing: 0.05em;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 520px) {
+  .campo-par {
+    grid-template-columns: 1fr;
+  }
+
+  .container {
+    padding: 1.75rem 1.25rem 2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

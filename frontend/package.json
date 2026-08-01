@@ -1,0 +1,14 @@
+{
+  "name": "nlc-forms-frontend",
+  "private": true,
+  "type": "module",
+  "workspaces": ["shared", "public", "admin"],
+  "scripts": {
+    "build": "bun run build:public && bun run build:admin",
+    "build:public": "bun run --cwd public build",
+    "build:admin": "bun run --cwd admin build",
+    "check": "bun run --cwd public check && bun run --cwd admin check",
+    "dev:public": "bun run --cwd public dev",
+    "dev:admin": "bun run --cwd admin dev"
+  }
+}

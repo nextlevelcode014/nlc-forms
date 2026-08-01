@@ -1,0 +1,29 @@
+---
+/*
+  Redirecionamento para o painel unificado.
+
+  Existe só por causa dos e-mails de nova triagem já enviados, que apontam para
+  `/painel-atendimento.html?codigo=...&servico=...`. Sem esta página eles viram
+  404 na caixa de entrada de quem recebeu.
+
+  O `notify.py` já gera o link novo; esta ponte pode sair quando os e-mails
+  antigos não importarem mais.
+*/
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecionando…</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <script is:inline>
+      // Preserva ?codigo= e ?servico=: é o que faz o painel abrir direto no
+      // cliente certo depois do login.
+      location.replace('/' + location.search);
+    </script>
+  </head>
+  <body>
+    <p>Redirecionando para o <a href="/">painel</a>…</p>
+  </body>
+</html>

@@ -1,0 +1,66 @@
+---
+/*
+  Portão de login. Aparecia copiado em painel-atendimento.html e
+  admin-lista-clientes.html, com o mesmo JS nos dois.
+
+  A página envolve o conteúdo protegido em <div id="protegido" hidden> e escuta
+  o evento `admin:entrou` para revelá-lo.
+*/
+interface Props {
+  titulo: string;
+  descricao: string;
+}
+
+const { titulo, descricao } = Astro.props;
+---
+
+<div id="portao" class="cartao portao">
+  <h1>{titulo}</h1>
+  <p class="portao__texto">{descricao}</p>
+
+  <div class="campo">
+    <label for="chave-admin">Chave de admin</label>
+    <input type="password" id="chave-admin" placeholder="••••••••••••" autocomplete="off" />
+  </div>
+
+  <button class="btn btn--largo" id="btn-entrar">Entrar →</button>
+  <div id="feedback-login" class="feedback" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+  import { entrar, traduzirErro } from '@nlc/shared/lib/admin';
+
+  const portao = document.getElementById('portao')!;
+  const campo = document.getElementById('chave-admin') as HTMLInputElement;
+  const botao = document.getElementById('btn-entrar') as HTMLButtonElement;
+  const feedback = document.getElementById('feedback-login')!;
+
+  async function tentar() {
+    const chave = campo.value.trim();
+    if (!chave) return;
+
+    botao.disabled = true;
+    botao.textContent = 'Entrando...';
+
+    try {
+      await entrar(chave);
+      portao.hidden = true;
+      document.getElementById('protegido')!.hidden = false;
+      // A página decide o que carregar depois do login.
+      document.dispatchEvent(new CustomEvent('admin:entrou'));
+    } catch (erro) {
+      feedback.className = 'feedback erro';
+      feedback.textContent = traduzirErro(erro, 'Erro ao entrar');
+    } finally {
+      // A chave sai do DOM assim que é validada — não fica num input até o reload.
+      campo.value = '';
+      botao.disabled = false;
+      botao.textContent = 'Entrar →';
+    }
+  }
+
+  botao.addEventListener('click', tentar);
+  campo.addEventListener('keydown', (evento) => {
+    if (evento.key === 'Enter') tentar();
+  });
+</script>

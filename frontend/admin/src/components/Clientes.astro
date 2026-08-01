@@ -1,0 +1,246 @@
+---
+import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
+---
+
+<div id="lista">
+  <div class="filtros">
+    <div class="campo">
+      <label for="busca">Buscar</label>
+      <input type="text" id="busca" placeholder="Nome, e-mail ou código..." />
+    </div>
+    <div class="campo">
+      <label for="filtro-servico">Serviço</label>
+      <select id="filtro-servico">
+        <option value="">Todos</option>
+        {Object.entries(ROTULO_SERVICO).map(([v, r]) => <option value={v}>{r}</option>)}
+      </select>
+    </div>
+    <div class="campo">
+      <label for="filtro-status">Status</label>
+      <select id="filtro-status">
+        <option value="">Todos</option>
+        {Object.entries(STATUS_LABEL).map(([v, r]) => <option value={v}>{r}</option>)}
+      </select>
+    </div>
+    <button class="btn" id="btn-filtrar">Filtrar</button>
+  </div>
+
+  <div id="feedback-lista" class="feedback" role="status" aria-live="polite"></div>
+
+  <p id="carregando" class="aviso-estado">Carregando...</p>
+  <p id="vazio" class="aviso-estado" hidden>Nenhum cliente encontrado.</p>
+
+  <div id="resultados" hidden>
+    <p class="contagem" id="contagem"></p>
+
+    <div class="cartao">
+      <div class="tabela-rolagem">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Cliente</th>
+              <th>Serviço</th>
+              <th>Data</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="corpo-tabela"></tbody>
+        </table>
+      </div>
+
+      <div class="paginacao" id="paginacao" hidden>
+        <button class="btn btn--secundario btn-sm" id="btn-anterior">← Anterior</button>
+        <span class="paginacao__info" id="pagina-info"></span>
+        <button class="btn btn--secundario btn-sm" id="btn-proximo">Próximo →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { api } from '@nlc/shared/lib/api';
+  import { chaveAtual, traduzirErro } from '@nlc/shared/lib/admin';
+  import { ROTULO_SERVICO, STATUS_LABEL, type Servico } from '@nlc/shared/lib/triagem';
+
+  const POR_PAGINA = 20;
+
+  interface Triagem {
+    codigo: string;
+    nome: string;
+    email: string;
+    servico: Servico;
+    criado_em: string | null;
+    status: string | null;
+  }
+
+  interface Resposta {
+    triagens: Triagem[];
+    total: number;
+    page: number;
+    per_page: number;
+  }
+
+  const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+
+  const corpo = el('corpo-tabela');
+  const feedback = el('feedback-lista');
+  const carregando = el('carregando');
+  const vazio = el('vazio');
+  const resultados = el('resultados');
+  const paginacao = el('paginacao');
+  const anterior = el<HTMLButtonElement>('btn-anterior');
+  const proximo = el<HTMLButtonElement>('btn-proximo');
+
+  let pagina = 1;
+  let total = 0;
+
+  async function carregar() {
+    const params = new URLSearchParams({ page: String(pagina), per_page: String(POR_PAGINA) });
+    for (const [chave, id] of [
+      ['search', 'busca'],
+      ['servico', 'filtro-servico'],
+      ['status', 'filtro-status'],
+    ] as const) {
+      const valor = el<HTMLInputElement>(id).value.trim();
+      if (valor) params.set(chave, valor);
+    }
+
+    carregando.hidden = false;
+    resultados.hidden = true;
+    vazio.hidden = true;
+    feedback.className = 'feedback';
+
+    try {
+      const dados = await api<Resposta>(`/admin/triagens?${params}`, { adminKey: chaveAtual() });
+      total = dados.total;
+      carregando.hidden = true;
+
+      if (dados.triagens.length === 0) {
+        vazio.hidden = false;
+        return;
+      }
+
+      desenhar(dados);
+      resultados.hidden = false;
+    } catch (erro) {
+      carregando.hidden = true;
+      feedback.className = 'feedback erro';
+      feedback.textContent = traduzirErro(erro, 'Erro ao carregar');
+    }
+  }
+
+  function desenhar(dados: Resposta) {
+    corpo.replaceChildren(...dados.triagens.map(linha));
+
+    const inicio = (dados.page - 1) * dados.per_page + 1;
+    const fim = Math.min(dados.page * dados.per_page, dados.total);
+    el('contagem').textContent =
+      `${inicio}–${fim} de ${dados.total} cliente${dados.total === 1 ? '' : 's'}`;
+
+    const paginas = Math.ceil(dados.total / dados.per_page);
+    paginacao.hidden = paginas <= 1;
+    if (paginas > 1) {
+      el('pagina-info').textContent = `Página ${dados.page} de ${paginas}`;
+      anterior.disabled = dados.page <= 1;
+      proximo.disabled = dados.page >= paginas;
+    }
+  }
+
+  /* Montado por DOM em vez de innerHTML: nome e e-mail vêm de formulário público,
+     ou seja, são texto de estranho. Aqui não existe caminho para injeção. */
+  function linha(t: Triagem): HTMLTableRowElement {
+    const tr = document.createElement('tr');
+
+    tr.append(
+      celula(marcado('span', 'mono', t.codigo)),
+      celula(marcado('div', 'cliente-nome', t.nome), marcado('div', 'cliente-email', t.email)),
+      celula(marcado('span', 'tag-servico', ROTULO_SERVICO[t.servico] ?? t.servico)),
+      celula(
+        document.createTextNode(
+          t.criado_em ? new Date(t.criado_em).toLocaleDateString('pt-BR') : '—',
+        ),
+      ),
+      celula(
+        marcado(
+          'span',
+          `tag tag--${t.status ?? 'sem_atendimento'}`,
+          t.status ? (STATUS_LABEL[t.status] ?? t.status) : 'Sem atendimento',
+        ),
+      ),
+      celula(abrir(t)),
+    );
+
+    return tr;
+  }
+
+  function celula(...filhos: Node[]): HTMLTableCellElement {
+    const td = document.createElement('td');
+    td.append(...filhos);
+    return td;
+  }
+
+  function marcado(tag: string, classe: string, texto: string): HTMLElement {
+    const elemento = document.createElement(tag);
+    elemento.className = classe;
+    elemento.textContent = texto;
+    return elemento;
+  }
+
+  /* Abre na mesma página. Era um <a target="_blank"> para outro .html, e cada
+     aba nova recomeçava sem sessão — pedindo a chave de novo. */
+  function abrir(t: Triagem): HTMLButtonElement {
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'link-acao';
+    botao.textContent = 'abrir →';
+    botao.addEventListener('click', () => {
+      document.dispatchEvent(
+        new CustomEvent('admin:abrir', { detail: { codigo: t.codigo, servico: t.servico } }),
+      );
+    });
+    return botao;
+  }
+
+  document.addEventListener('admin:entrou', () => {
+    // Link vindo do e-mail de nova triagem: abre direto no atendimento.
+    const params = new URLSearchParams(location.search);
+    const codigo = params.get('codigo');
+    const servico = params.get('servico');
+
+    carregar();
+
+    if (codigo && servico) {
+      document.dispatchEvent(new CustomEvent('admin:abrir', { detail: { codigo, servico } }));
+    }
+  });
+
+  document.addEventListener('admin:voltar', carregar);
+
+  el('btn-filtrar').addEventListener('click', () => {
+    pagina = 1;
+    carregar();
+  });
+
+  el('busca').addEventListener('keydown', (evento) => {
+    if ((evento as KeyboardEvent).key === 'Enter') {
+      pagina = 1;
+      carregar();
+    }
+  });
+
+  anterior.addEventListener('click', () => {
+    if (pagina > 1) {
+      pagina--;
+      carregar();
+    }
+  });
+
+  proximo.addEventListener('click', () => {
+    if (pagina * POR_PAGINA < total) {
+      pagina++;
+      carregar();
+    }
+  });
+</script>

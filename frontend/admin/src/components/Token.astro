@@ -1,0 +1,194 @@
+---
+import { ROTULO_SERVICO } from '@nlc/shared/lib/triagem';
+
+const servicos = Object.entries(ROTULO_SERVICO);
+---
+
+<div class="intro">
+  <h1>gerar token</h1>
+  <p>Cria um link de acesso único para enviar ao cliente.</p>
+</div>
+
+<form id="form-token" class="cartao">
+  <div class="campo-par">
+    <div class="campo">
+      <label for="servico">Serviço</label>
+      <select id="servico" required>
+        {servicos.map(([valor, rotulo]) => <option value={valor}>{rotulo}</option>)}
+      </select>
+    </div>
+    <div class="campo">
+      <label for="validade">Validade</label>
+      <select id="validade">
+        <option value="24">24 horas</option>
+        <option value="48" selected>48 horas</option>
+        <option value="168">7 dias</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="campo">
+    <label for="nota">Nota <span class="dica">(opcional — ex: nome do cliente)</span></label>
+    <input type="text" id="nota" placeholder="Ex: João - WhatsApp 19h" />
+  </div>
+
+  <button type="submit" class="btn btn--largo" id="btn-gerar">Gerar link →</button>
+</form>
+
+<div id="feedback-token" class="feedback" role="status" aria-live="polite"></div>
+
+<div id="resultado-token" class="cartao" hidden>
+  <div class="cartao__topo">
+    <span class="cartao__titulo">Link gerado</span>
+  </div>
+
+  <div class="caixa-link">
+    <input type="text" id="link-gerado" readonly />
+    <button type="button" class="btn btn--secundario btn-sm" id="btn-copiar">Copiar</button>
+  </div>
+
+  <dl class="meta" id="meta-token"></dl>
+</div>
+
+<details class="config">
+  <summary>configurar endpoint dos formulários</summary>
+  <div class="campo">
+    <label for="base-formularios">URL base do site público</label>
+    <input type="text" id="base-formularios" value="https://support.nextlevelcode.pro" />
+  </div>
+  <p class="config__nota">
+    A URL da API vem de <code>PUBLIC_API_BASE</code> no build — não se configura aqui.
+  </p>
+</details>
+
+<style>
+  .caixa-link {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .caixa-link input {
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .meta {
+    margin-top: 1rem;
+    font-size: 13px;
+    color: var(--text-muted);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.3rem 0.75rem;
+  }
+
+  .meta dt {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .meta dd {
+    margin: 0;
+  }
+
+  .config {
+    margin-top: 2rem;
+    font-size: 13px;
+  }
+
+  .config summary {
+    color: var(--text-faint);
+    cursor: pointer;
+  }
+
+  .config summary:hover {
+    color: var(--text-muted);
+  }
+
+  .config__nota {
+    color: var(--text-faint);
+    margin-top: 0.5rem;
+  }
+</style>
+
+<script>
+  import { api } from '@nlc/shared/lib/api';
+  import { chaveAtual, traduzirErro } from '@nlc/shared/lib/admin';
+  import { ROTULO_SERVICO, type Servico } from '@nlc/shared/lib/triagem';
+
+  const form = document.getElementById('form-token') as HTMLFormElement;
+  const botao = document.getElementById('btn-gerar') as HTMLButtonElement;
+  const feedback = document.getElementById('feedback-token')!;
+  const resultado = document.getElementById('resultado-token')!;
+  const link = document.getElementById('link-gerado') as HTMLInputElement;
+  const meta = document.getElementById('meta-token')!;
+  const copiar = document.getElementById('btn-copiar') as HTMLButtonElement;
+
+  const ARQUIVO: Record<Servico, string> = {
+    suporte: 'triagem-suporte.html',
+    seguranca: 'triagem-seguranca.html',
+    desenvolvimento: 'triagem-desenvolvimento.html',
+  };
+
+  const valor = (id: string) => (document.getElementById(id) as HTMLInputElement).value.trim();
+
+  form.addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+
+    const servico = valor('servico') as Servico;
+    const horas = Number(valor('validade'));
+    const nota = valor('nota');
+    const baseFormularios = valor('base-formularios').replace(/\/$/, '');
+
+    feedback.className = 'feedback';
+    resultado.hidden = true;
+    botao.disabled = true;
+    botao.textContent = 'Gerando...';
+
+    try {
+      // A chave vem da sessão: não há mais um campo de senha por ferramenta.
+      const dados = await api<{ token: string; expira_em: string }>('/admin/gerar-token', {
+        method: 'POST',
+        adminKey: chaveAtual(),
+        body: { servico, nota, validade_horas: horas },
+      });
+
+      link.value = `${baseFormularios}/${ARQUIVO[servico]}?token=${dados.token}&servico=${servico}`;
+
+      // Montado por DOM: a nota é texto livre e já foi injetada como HTML aqui antes.
+      meta.replaceChildren(
+        ...linha('Serviço', ROTULO_SERVICO[servico]),
+        ...linha('Expira em', `${horas}h — ${new Date(dados.expira_em).toLocaleString('pt-BR')}`),
+        ...(nota ? linha('Nota', nota) : []),
+      );
+
+      resultado.hidden = false;
+      copiar.textContent = 'Copiar';
+    } catch (erro) {
+      feedback.className = 'feedback erro';
+      feedback.textContent = traduzirErro(erro, 'Erro ao gerar token');
+    } finally {
+      botao.disabled = false;
+      botao.textContent = 'Gerar link →';
+    }
+  });
+
+  function linha(rotulo: string, texto: string): [HTMLElement, HTMLElement] {
+    const dt = document.createElement('dt');
+    dt.textContent = rotulo;
+    const dd = document.createElement('dd');
+    dd.textContent = texto;
+    return [dt, dd];
+  }
+
+  copiar.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(link.value);
+      copiar.textContent = 'Copiado ✓';
+      setTimeout(() => (copiar.textContent = 'Copiar'), 2000);
+    } catch {
+      // clipboard exige contexto seguro; no HTTP puro cai aqui.
+      link.select();
+      copiar.textContent = 'Copie com Ctrl+C';
+    }
+  });
+</script>

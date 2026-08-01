@@ -1,0 +1,232 @@
+---
+import type { Campo as TCampo, Formulario } from '@nlc/shared/lib/triagem';
+import Campo from './Campo.astro';
+
+interface Props {
+  formulario: Formulario;
+}
+
+const { formulario } = Astro.props;
+
+/**
+ * Agrupa campos `meia` consecutivos em pares, para caírem lado a lado.
+ * Um `meia` sozinho no fim vira linha inteira — meia coluna órfã fica torta.
+ */
+function agrupar(campos: TCampo[]): TCampo[][] {
+  const linhas: TCampo[][] = [];
+  for (const campo of campos) {
+    const ultima = linhas.at(-1);
+    if (campo.meia && ultima?.length === 1 && ultima[0].meia) ultima.push(campo);
+    else linhas.push([campo]);
+  }
+  return linhas;
+}
+---
+
+<!-- Estados do portão de acesso. O formulário só existe no DOM depois que o
+     token é validado — quem chega sem link não vê nem a estrutura das perguntas. -->
+<div id="verificando" class="estado">
+  <p class="estado__texto">Verificando acesso...</p>
+</div>
+
+<div id="bloqueado" class="estado" hidden>
+  <div class="estado__icone">🔒</div>
+  <h1 class="estado__titulo">Acesso restrito</h1>
+  <p class="estado__texto" id="motivo">Este formulário requer um link de acesso válido.</p>
+  <p class="estado__dica">
+    Se você não recebeu um link, entre em contato pelo WhatsApp ou e-mail para solicitar o acesso.
+  </p>
+</div>
+
+<div id="conteudo" hidden>
+  <div class="intro">
+    <h1>{formulario.titulo}</h1>
+    <p>
+      {formulario.descricao} Campos marcados com <span class="obrigatorio">*</span> são obrigatórios.
+    </p>
+  </div>
+
+  <form id="form-triagem" data-servico={formulario.servico} novalidate>
+    {
+      /*
+        `role="group"` + `aria-labelledby` no lugar de <fieldset><legend>.
+
+        O <legend> não se comporta como um bloco normal: ele é posicionado no vão
+        da borda do fieldset e ignora largura. Forçá-lo com `float` fazia o
+        conteúdo seguinte fluir AO LADO do rótulo — os campos da primeira linha
+        iam parar espremidos à direita de "01 Contato". Um <p> com
+        `aria-labelledby` nomeia o grupo do mesmo jeito para leitor de tela, e
+        se comporta como qualquer elemento.
+      */
+      formulario.secoes.map((secao, i) => (
+        <div class="secao" role="group" aria-labelledby={`secao-${i}`}>
+          <p class="secao__rotulo" id={`secao-${i}`}>
+            <span class="secao__num">{String(i + 1).padStart(2, '0')}</span>
+            {secao.titulo}
+          </p>
+
+          {agrupar(secao.campos).map((linha) =>
+            linha.length === 2 ? (
+              <div class="campo-par">
+                {linha.map((campo) => (
+                  <Campo campo={campo} />
+                ))}
+              </div>
+            ) : (
+              <Campo campo={linha[0]} />
+            ),
+          )}
+        </div>
+      ))
+    }
+
+    <div class="envio">
+      <p class="envio__nota">Após o envio, entrarei em contato pelo e-mail ou WhatsApp informado.</p>
+      <button type="submit" class="btn" id="btn-enviar">Enviar triagem →</button>
+    </div>
+  </form>
+
+  <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+</div>
+
+
+<script>
+  import { API_BASE, api, ErroApi } from '@nlc/shared/lib/api';
+
+  const verificando = document.getElementById('verificando')!;
+  const bloqueado = document.getElementById('bloqueado')!;
+  const motivo = document.getElementById('motivo')!;
+  const conteudo = document.getElementById('conteudo')!;
+  const form = document.getElementById('form-triagem') as HTMLFormElement;
+  const botao = document.getElementById('btn-enviar') as HTMLButtonElement;
+  const feedback = document.getElementById('feedback')!;
+
+  const servico = form.dataset.servico!;
+  const token = new URLSearchParams(location.search).get('token');
+
+  function bloquear(texto: string) {
+    verificando.hidden = true;
+    conteudo.hidden = true;
+    bloqueado.hidden = false;
+    motivo.textContent = texto;
+  }
+
+  function liberar() {
+    verificando.hidden = true;
+    bloqueado.hidden = true;
+    conteudo.hidden = false;
+  }
+
+  function avisar(tipo: 'sucesso' | 'erro', mensagem: string) {
+    feedback.className = `feedback ${tipo}`;
+    feedback.textContent = mensagem;
+    feedback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  async function checarAcesso() {
+    if (!token) {
+      bloquear('Nenhum link de acesso foi informado.');
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `${API_BASE}/token/${encodeURIComponent(token)}/validar?servico=${servico}`,
+      );
+      const dados = (await res.json()) as { valido?: boolean; motivo?: string };
+
+      if (!res.ok || !dados.valido) {
+        bloquear(dados.motivo ?? 'Este link não é válido.');
+        return;
+      }
+      liberar();
+    } catch {
+      bloquear('Não foi possível verificar o acesso. Tente novamente em instantes.');
+    }
+  }
+
+  /** Valida os obrigatórios na mão porque o form é `novalidate` — o balão nativo
+   *  do navegador não segue o visual da marca e não é traduzível. */
+  function validar(): boolean {
+    let ok = true;
+
+    for (const el of form.querySelectorAll<HTMLInputElement>('[required]')) {
+      if (el.type === 'radio') {
+        const marcado = form.querySelector(`[name="${el.name}"]:checked`);
+        if (!marcado) ok = false;
+        continue;
+      }
+      if (!el.value.trim()) {
+        el.classList.add('invalido');
+        el.addEventListener('input', () => el.classList.remove('invalido'), { once: true });
+        ok = false;
+      }
+    }
+    return ok;
+  }
+
+  form.addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+
+    if (!validar()) {
+      avisar('erro', 'Preencha todos os campos obrigatórios antes de enviar.');
+      return;
+    }
+
+    botao.disabled = true;
+    botao.textContent = 'Enviando...';
+    feedback.className = 'feedback';
+
+    const dados = Object.fromEntries(new FormData(form));
+
+    try {
+      const { codigo } = await api<{ codigo: string }>(
+        `/triagem/${servico}?token=${encodeURIComponent(token!)}`,
+        { method: 'POST', body: dados },
+      );
+
+      conteudo.replaceChildren(recibo(codigo));
+    } catch (erro) {
+      avisar(
+        'erro',
+        erro instanceof ErroApi
+          ? `Erro ao enviar: ${erro.message}`
+          : 'Não foi possível conectar ao servidor. Tente novamente.',
+      );
+      botao.disabled = false;
+      botao.textContent = 'Enviar triagem →';
+    }
+  });
+
+  /** Recibo montado por DOM, e não por innerHTML: o código vem do servidor, mas
+   *  concatenar HTML com dado externo é o hábito que vira XSS na próxima edição. */
+  function recibo(codigo: string): HTMLElement {
+    const caixa = document.createElement('div');
+    caixa.className = 'estado';
+
+    const icone = document.createElement('div');
+    icone.className = 'estado__icone';
+    icone.textContent = '✓';
+
+    const titulo = document.createElement('h1');
+    titulo.className = 'estado__titulo';
+    titulo.textContent = 'Triagem recebida';
+
+    const texto = document.createElement('p');
+    texto.className = 'estado__texto';
+    texto.textContent = 'Entrarei em contato pelo e-mail ou WhatsApp informado em breve.';
+
+    const dica = document.createElement('p');
+    dica.className = 'estado__dica';
+    dica.textContent = 'Guarde este código para consulta futura:';
+
+    const valor = document.createElement('p');
+    valor.className = 'codigo';
+    valor.textContent = codigo;
+
+    caixa.append(icone, titulo, texto, dica, valor);
+    return caixa;
+  }
+
+  checarAcesso();
+</script>

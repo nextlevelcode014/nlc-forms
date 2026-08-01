@@ -1,0 +1,24 @@
+---
+/*
+  Cabeçalho da marca. No público ele é um link de volta para o site; no admin
+  não leva a lugar nenhum (é ferramenta interna), então `href` é opcional.
+*/
+interface Props {
+  href?: string;
+  logo?: string;
+}
+
+const { href, logo = '/logo.png' } = Astro.props;
+const Marca = href ? 'a' : 'div';
+---
+
+<header class="cabecalho">
+  <Marca
+    class="cabecalho__link"
+    {...href ? { href, 'aria-label': 'Voltar ao site' } : {}}
+  >
+    <img class="cabecalho__marca" src={logo} alt="NextLevelCode" width="42" height="42" />
+    <span class="cabecalho__nome">NextLevelCode</span>
+  </Marca>
+  <slot name="extra" />
+</header>

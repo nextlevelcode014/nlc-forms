@@ -1,0 +1,104 @@
+---
+/*
+  Navegação do painel.
+
+  Trocar de seção é esconder/mostrar `[data-secao]`, sem recarregar a página —
+  e é isso que mantém a chave de admin viva em memória. Antes, cada ferramenta
+  era um .html separado e cada navegação exigia digitar a chave de novo.
+*/
+const secoes = [
+  { id: 'atendimento', rotulo: 'Atendimento' },
+  { id: 'token', rotulo: 'Gerar token' },
+];
+---
+
+<nav class="abas" aria-label="Seções do painel">
+  {
+    secoes.map((secao, i) => (
+      <button
+        type="button"
+        class="aba"
+        data-alvo={secao.id}
+        aria-current={i === 0 ? 'page' : undefined}
+      >
+        {secao.rotulo}
+      </button>
+    ))
+  }
+
+  <button type="button" class="aba aba--sair" id="btn-sair">Sair</button>
+</nav>
+
+<style>
+  .abas {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 1.5rem;
+  }
+
+  .aba {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-family: var(--font-heading);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    /* -1px cobre a borda do container, senão a aba ativa fica flutuando. */
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .aba:hover {
+    color: var(--text);
+  }
+
+  .aba[aria-current='page'] {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .aba:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .aba--sair {
+    margin-left: auto;
+    font-weight: 400;
+    color: var(--text-faint);
+  }
+
+  .aba--sair:hover {
+    color: var(--hot);
+  }
+</style>
+
+<script>
+  import { encerrar } from '@nlc/shared/lib/admin';
+
+  const abas = document.querySelectorAll<HTMLButtonElement>('.aba[data-alvo]');
+  const secoes = document.querySelectorAll<HTMLElement>('[data-secao]');
+
+  function mostrar(alvo: string) {
+    for (const secao of secoes) secao.hidden = secao.dataset.secao !== alvo;
+    for (const aba of abas) {
+      if (aba.dataset.alvo === alvo) aba.setAttribute('aria-current', 'page');
+      else aba.removeAttribute('aria-current');
+    }
+  }
+
+  for (const aba of abas) {
+    aba.addEventListener('click', () => mostrar(aba.dataset.alvo!));
+  }
+
+  document.getElementById('btn-sair')!.addEventListener('click', () => {
+    encerrar();
+    // Recarrega para zerar tudo: dados de cliente carregados na tela não podem
+    // sobreviver ao logout.
+    location.href = location.pathname;
+  });
+</script>

@@ -1,0 +1,39 @@
+---
+import { Font } from 'astro:assets';
+import Cabecalho from '@nlc/shared/components/Cabecalho.astro';
+import Rodape from '@nlc/shared/components/Rodape.astro';
+import '@nlc/shared/styles/tokens.css';
+import '@nlc/shared/styles/base.css';
+
+interface Props {
+  titulo: string;
+  descricao?: string;
+}
+
+const { titulo, descricao } = Astro.props;
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titulo}</title>
+    {descricao && <meta name="description" content={descricao} />}
+    <link rel="icon" type="image/png" href="/favicon.png" />
+
+    <!-- Formulário de cliente: não deve aparecer em busca. -->
+    <meta name="robots" content="noindex, nofollow" />
+
+    <Font cssVariable="--font-display" preload />
+    <Font cssVariable="--font-body" preload />
+  </head>
+
+  <body>
+    <main class="container">
+      <Cabecalho href="https://nextlevelcode.pro" />
+      <slot />
+    </main>
+    <Rodape />
+  </body>
+</html>

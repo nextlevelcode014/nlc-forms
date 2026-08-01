@@ -1,0 +1,758 @@
+---
+import { STATUS_LABEL } from '@nlc/shared/lib/triagem';
+---
+
+<div id="detalhe" hidden>
+  <button type="button" class="btn btn--secundario btn-sm voltar" id="btn-voltar">
+    ← Todos os clientes
+  </button>
+
+  <div id="feedback-busca" class="feedback" role="status" aria-live="polite"></div>
+
+  <div id="resultado">
+      <!-- Triagem do cliente (somente leitura) -->
+      <section class="cartao">
+        <div class="cliente">
+          <span class="cliente__nome" id="cliente-nome">—</span>
+          <span class="cliente__codigo" id="cliente-codigo">—</span>
+        </div>
+        <span class="tag-servico" id="cliente-servico">—</span>
+        <p class="cliente__meta" id="cliente-meta">—</p>
+
+        <div class="divisoria"></div>
+
+        <div class="grade" id="grade-triagem"></div>
+      </section>
+
+      <!-- Execução -->
+      <section class="cartao">
+        <div class="cartao__topo">
+          <h2 class="cartao__titulo">Execução do atendimento</h2>
+          <select id="status">
+            {
+              Object.entries(STATUS_LABEL).map(([v, r]) => (
+                <option value={v} selected={v === 'concluido'}>
+                  {r}
+                </option>
+              ))
+            }
+          </select>
+        </div>
+
+        <div class="campo-par">
+          <div class="campo">
+            <label for="data-atendimento">
+              Data do atendimento <span class="dica">(opcional)</span>
+            </label>
+            <input type="text" id="data-atendimento" placeholder="Ex: 20/06/2026" />
+          </div>
+          <div class="campo">
+            <label for="validade-orcamento">
+              Garantia válida até <span class="dica">(aparece no PDF)</span>
+            </label>
+            <input type="text" id="validade-orcamento" placeholder="Ex: 27/06/2026" />
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="diagnostico">Diagnóstico</label>
+          <textarea id="diagnostico" placeholder="O que foi encontrado como causa raiz..."></textarea>
+        </div>
+
+        <div class="campo">
+          <label for="servicos-realizados">Serviços realizados</label>
+          <textarea id="servicos-realizados" placeholder="O que foi feito durante o atendimento..."
+          ></textarea>
+        </div>
+
+        <div class="campo">
+          <label for="recomendacoes">
+            Recomendações <span class="dica">(aparece no PDF do cliente)</span>
+          </label>
+          <textarea id="recomendacoes" placeholder="Orientações, cuidados futuros..."></textarea>
+        </div>
+
+        <div class="campo">
+          <label for="observacoes-internas">
+            Observações internas <span class="dica">(NÃO aparece no PDF do cliente)</span>
+          </label>
+          <textarea id="observacoes-internas" placeholder="Anotações só para você..."></textarea>
+        </div>
+      </section>
+
+      <!-- Orçamento -->
+      <section class="cartao">
+        <div class="cartao__topo">
+          <h2 class="cartao__titulo">Orçamento</h2>
+        </div>
+
+        <p class="dica-catalogo">Selecione um item do catálogo ou adicione um item livre</p>
+
+        <div class="linha-item">
+          <div class="campo">
+            <label for="item-catalogo">Item do catálogo</label>
+            <select id="item-catalogo"><option value="">— Item livre —</option></select>
+          </div>
+          <div class="campo">
+            <label for="item-nome">Descrição</label>
+            <input type="text" id="item-nome" placeholder="Nome do item" />
+          </div>
+          <div class="campo">
+            <label for="item-qtd">Qtd.</label>
+            <input type="number" id="item-qtd" value="1" min="0.1" step="0.1" />
+          </div>
+          <div class="campo">
+            <label for="item-valor">Valor unit.</label>
+            <input type="number" id="item-valor" placeholder="0,00" min="0" step="0.01" />
+          </div>
+          <button class="btn btn--secundario btn-sm" id="btn-add-item">+ Adicionar</button>
+        </div>
+
+        <div class="tabela-rolagem">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qtd.</th>
+                <th class="col-valor">Valor unit.</th>
+                <th class="col-valor">Subtotal</th>
+                <th class="col-acao"></th>
+              </tr>
+            </thead>
+            <tbody id="itens"></tbody>
+          </table>
+        </div>
+
+        <p id="sem-itens" class="vazio">Nenhum item adicionado ainda</p>
+
+        <div class="total">
+          <span class="total__rotulo">Total</span>
+          <span class="total__valor" id="total">R$ 0,00</span>
+        </div>
+      </section>
+
+      <div id="feedback-exec" class="feedback" role="status" aria-live="polite"></div>
+
+      <div class="acoes">
+        <button class="btn btn--secundario" id="btn-salvar">Salvar atendimento</button>
+        <button class="btn btn--destaque" id="btn-pdf">Gerar PDF do cliente →</button>
+        <button class="btn" id="btn-enviar-pdf">Enviar PDF para o cliente ✉</button>
+      </div>
+
+      <!-- Relatório técnico em Markdown -->
+      <section class="cartao" id="bloco-md">
+        <div class="cartao__topo">
+          <h2 class="cartao__titulo">Relatório técnico (Markdown)</h2>
+          <button class="btn btn--secundario btn-sm" id="btn-md-novo" hidden>+ Novo</button>
+        </div>
+
+        <div class="tabela-rolagem">
+          <table>
+            <thead>
+              <tr>
+                <th>Título</th>
+                <th>Versão</th>
+                <th>Atualizado</th>
+                <th class="col-acao"></th>
+              </tr>
+            </thead>
+            <tbody id="md-lista"></tbody>
+          </table>
+        </div>
+
+        <p id="md-vazio" class="vazio">Nenhum relatório para este código ainda</p>
+
+        <div class="divisoria"></div>
+
+        <div class="campo-par">
+          <div class="campo">
+            <label for="md-titulo">Título</label>
+            <input type="text" id="md-titulo" placeholder="Ex: Relatório" />
+          </div>
+          <div class="campo">
+            <label for="md-subtitulo">Subtítulo</label>
+            <input type="text" id="md-subtitulo" placeholder="Ex: Acer Nitro V15 (ANV15-51)" />
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="md-descricao">
+            Descrição <span class="dica">(o parágrafo abaixo do título, na capa)</span>
+          </label>
+          <textarea
+            id="md-descricao"
+            rows="2"
+            placeholder="Ex: Diagnóstico térmico, testes de benchmark, ações realizadas e resultados obtidos."
+          ></textarea>
+        </div>
+
+        <div class="campo-par">
+          <div class="campo">
+            <label for="md-versao">Versão <span class="dica">(opcional)</span></label>
+            <input type="text" id="md-versao" placeholder="Ex: 1.0" />
+          </div>
+          <div class="campo">
+            <label for="md-arquivo">Carregar arquivo .md</label>
+            <input type="file" id="md-arquivo" accept=".md,.markdown,text/markdown" />
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="md-fonte">
+            Conteúdo <span class="dica">(frontmatter YAML no topo é opcional)</span>
+          </label>
+          <textarea id="md-fonte" class="editor" spellcheck="false" placeholder="# Diagnóstico
+
+Texto do relatório em Markdown..."></textarea>
+        </div>
+
+        <div id="feedback-md" class="feedback" role="status" aria-live="polite"></div>
+
+        <div class="acoes">
+          <button class="btn btn--secundario" id="btn-md-salvar">Salvar relatório</button>
+          <button class="btn btn--destaque" id="btn-md-pdf">Gerar PDF do relatório →</button>
+        </div>
+      </section>
+    </div>
+</div>
+
+<style>
+  .voltar {
+    margin-bottom: 1rem;
+  }
+
+  .editor {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.55;
+    min-height: 320px;
+    tab-size: 2;
+    /* Tab continua movendo o foco de propósito: capturá-lo dentro do textarea
+       prenderia quem navega por teclado. Indentação de Markdown se resolve com
+       espaços. */
+  }
+</style>
+
+<script>
+  import { api, baixarPdf, ErroApi } from '@nlc/shared/lib/api';
+  import { chaveAtual, traduzirErro } from '@nlc/shared/lib/admin';
+  import { ROTULO_SERVICO, RESUMO_ADMIN, type Servico } from '@nlc/shared/lib/triagem';
+
+  interface Item {
+    nome: string;
+    quantidade: number;
+    valor_unitario: number;
+  }
+
+  interface ItemCatalogo {
+    id: number;
+    nome: string;
+    valor: number;
+  }
+
+  interface Execucao {
+    status?: string;
+    data_atendimento?: string;
+    validade_orcamento?: string;
+    diagnostico?: string;
+    servicos_realizados?: string;
+    recomendacoes?: string;
+    observacoes_internas?: string;
+    itens?: Item[];
+  }
+
+  const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const campo = (id: string) => el<HTMLInputElement>(id);
+
+  let codigoAtual: string | null = null;
+  let servicoAtual: Servico | null = null;
+  let itens: Item[] = [];
+  const catalogo = new Map<Servico, ItemCatalogo[]>();
+
+  const brl = (valor: number) =>
+    valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  function avisar(id: string, tipo: 'sucesso' | 'erro', mensagem: string) {
+    const alvo = el(id);
+    alvo.className = `feedback ${tipo}`;
+    alvo.textContent = mensagem;
+    alvo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ── Abertura de um cliente ──────────────────────────────────
+
+  async function abrir(codigo: string, servico: Servico) {
+    el('feedback-busca').className = 'feedback';
+
+    try {
+      const dados = await api<{ triagem: Record<string, string>; execucao: Execucao | null }>(
+        `/admin/triagem/${encodeURIComponent(codigo)}?servico=${servico}`,
+        { adminKey: chaveAtual() },
+      );
+
+      codigoAtual = codigo;
+      servicoAtual = servico;
+
+      desenharTriagem(dados.triagem, servico);
+      await carregarCatalogo(servico);
+      preencherExecucao(dados.execucao);
+
+      mostrarDetalhe(true);
+
+      // Troca de cliente: o editor não pode continuar apontando para o
+      // relatório do anterior.
+      limparEditor();
+      await carregarRelatorios();
+    } catch (erro) {
+      avisar(
+        'feedback-busca',
+        'erro',
+        erro instanceof ErroApi && erro.status === 404
+          ? 'Nenhuma triagem encontrada com esse código nesse serviço.'
+          : traduzirErro(erro, 'Erro ao buscar'),
+      );
+    }
+  }
+
+  /** Alterna entre a lista de clientes e o atendimento de um deles. */
+  function mostrarDetalhe(visivel: boolean) {
+    el('detalhe').hidden = !visivel;
+    el('lista').hidden = visivel;
+  }
+
+  function desenharTriagem(triagem: Record<string, string>, servico: Servico) {
+    el('cliente-nome').textContent = triagem.nome || '—';
+    el('cliente-codigo').textContent = triagem.codigo || '—';
+    el('cliente-servico').textContent = ROTULO_SERVICO[servico] ?? servico;
+
+    const criado = triagem.criado_em
+      ? new Date(triagem.criado_em).toLocaleString('pt-BR')
+      : '—';
+    el('cliente-meta').textContent =
+      `${triagem.email || '—'} · ${triagem.telefone || 'sem telefone'} · enviado em ${criado}`;
+
+    const blocos: HTMLElement[] = [];
+
+    // Marca e modelo são duas colunas, mas uma informação só para quem atende.
+    if (servico === 'suporte') {
+      const equipamento = `${triagem.marca ?? ''} ${triagem.modelo ?? ''}`.trim();
+      blocos.push(item('Marca / modelo', equipamento || '—'));
+    }
+
+    for (const { campo: chave, rotulo, largo } of RESUMO_ADMIN[servico]) {
+      const valor = triagem[chave];
+      if (valor) blocos.push(item(rotulo, valor, largo));
+    }
+
+    el('grade-triagem').replaceChildren(...blocos);
+  }
+
+  function item(rotulo: string, valor: string, largo = false): HTMLElement {
+    const caixa = document.createElement('div');
+    if (largo) caixa.className = 'grade__item--largo';
+
+    const r = document.createElement('div');
+    r.className = 'grade__rotulo';
+    r.textContent = rotulo;
+
+    const v = document.createElement('div');
+    v.className = 'grade__valor';
+    // textContent, não innerHTML: isto é texto digitado por um estranho.
+    v.textContent = valor;
+
+    caixa.append(r, v);
+    return caixa;
+  }
+
+  // ── Catálogo ────────────────────────────────────────────────
+
+  async function carregarCatalogo(servico: Servico) {
+    if (!catalogo.has(servico)) {
+      try {
+        const dados = await api<{ itens: ItemCatalogo[] }>(`/admin/catalogo?servico=${servico}`, {
+          adminKey: chaveAtual(),
+        });
+        catalogo.set(servico, dados.itens ?? []);
+      } catch {
+        // Catálogo é conveniência: sem ele o item livre continua funcionando.
+        catalogo.set(servico, []);
+      }
+    }
+
+    const select = el<HTMLSelectElement>('item-catalogo');
+    const livre = new Option('— Item livre —', '');
+
+    select.replaceChildren(
+      livre,
+      ...catalogo.get(servico)!.map((i) => {
+        const opcao = new Option(`${i.nome} — ${brl(i.valor)}`, String(i.id));
+        opcao.dataset.nome = i.nome;
+        opcao.dataset.valor = String(i.valor);
+        return opcao;
+      }),
+    );
+  }
+
+  // ── Itens do orçamento ──────────────────────────────────────
+
+  function adicionarItem() {
+    const nome = campo('item-nome').value.trim();
+    if (!nome) return avisar('feedback-exec', 'erro', 'Informe a descrição do item.');
+
+    itens.push({
+      nome,
+      quantidade: Number(campo('item-qtd').value) || 1,
+      valor_unitario: Number(campo('item-valor').value) || 0,
+    });
+
+    desenharItens();
+
+    campo('item-catalogo').value = '';
+    campo('item-nome').value = '';
+    campo('item-qtd').value = '1';
+    campo('item-valor').value = '';
+  }
+
+  function desenharItens() {
+    el('sem-itens').hidden = itens.length > 0;
+
+    el('itens').replaceChildren(
+      ...itens.map((item, indice) => {
+        const tr = document.createElement('tr');
+        const subtotal = item.quantidade * item.valor_unitario;
+
+        for (const [texto, classe] of [
+          [item.nome, ''],
+          [String(item.quantidade), ''],
+          [brl(item.valor_unitario), 'col-valor'],
+          [brl(subtotal), 'col-valor'],
+        ] as const) {
+          const td = document.createElement('td');
+          if (classe) td.className = classe;
+          td.textContent = texto;
+          tr.append(td);
+        }
+
+        const acao = document.createElement('td');
+        acao.className = 'col-acao';
+        const remover = document.createElement('button');
+        remover.className = 'btn-remover';
+        remover.type = 'button';
+        remover.textContent = '×';
+        remover.setAttribute('aria-label', `Remover ${item.nome}`);
+        remover.addEventListener('click', () => {
+          itens.splice(indice, 1);
+          desenharItens();
+        });
+        acao.append(remover);
+        tr.append(acao);
+
+        return tr;
+      }),
+    );
+
+    const total = itens.reduce((soma, i) => soma + i.quantidade * i.valor_unitario, 0);
+    el('total').textContent = brl(total);
+  }
+
+  function preencherExecucao(execucao: Execucao | null) {
+    const valores: Record<string, string> = {
+      status: execucao?.status ?? 'concluido',
+      'data-atendimento': execucao?.data_atendimento ?? '',
+      'validade-orcamento': execucao?.validade_orcamento ?? '',
+      diagnostico: execucao?.diagnostico ?? '',
+      'servicos-realizados': execucao?.servicos_realizados ?? '',
+      recomendacoes: execucao?.recomendacoes ?? '',
+      'observacoes-internas': execucao?.observacoes_internas ?? '',
+    };
+
+    for (const [id, valor] of Object.entries(valores)) campo(id).value = valor;
+
+    itens = execucao?.itens ?? [];
+    desenharItens();
+  }
+
+  // ── Salvar / PDF ────────────────────────────────────────────
+
+  async function salvar(gerarPdf: boolean) {
+    if (!codigoAtual) return avisar('feedback-exec', 'erro', 'Busque uma triagem primeiro.');
+
+    const botao = el<HTMLButtonElement>(gerarPdf ? 'btn-pdf' : 'btn-salvar');
+    const original = botao.textContent;
+    botao.disabled = true;
+    botao.textContent = 'Salvando...';
+
+    try {
+      await api('/admin/execucao', {
+        method: 'POST',
+        adminKey: chaveAtual(),
+        body: {
+          codigo: codigoAtual,
+          servico: servicoAtual,
+          status: campo('status').value,
+          diagnostico: campo('diagnostico').value,
+          servicos_realizados: campo('servicos-realizados').value,
+          recomendacoes: campo('recomendacoes').value,
+          observacoes_internas: campo('observacoes-internas').value,
+          data_atendimento: campo('data-atendimento').value,
+          validade_orcamento: campo('validade-orcamento').value,
+          itens,
+        },
+      });
+
+      avisar('feedback-exec', 'sucesso', 'Atendimento salvo com sucesso.');
+      if (gerarPdf) await gerarPdfCliente();
+    } catch (erro) {
+      avisar('feedback-exec', 'erro', traduzirErro(erro, 'Erro ao salvar'));
+    } finally {
+      botao.disabled = false;
+      botao.textContent = original;
+    }
+  }
+
+  async function gerarPdfCliente() {
+    try {
+      await baixarPdf(
+        `/admin/relatorio/${encodeURIComponent(codigoAtual!)}.pdf?servico=${servicoAtual}`,
+        `relatorio-${codigoAtual}.pdf`,
+        chaveAtual(),
+      );
+    } catch (erro) {
+      avisar('feedback-exec', 'erro', traduzirErro(erro, 'Erro ao gerar PDF'));
+    }
+  }
+
+  async function enviarPdf() {
+    if (!codigoAtual) return avisar('feedback-exec', 'erro', 'Busque uma triagem primeiro.');
+
+    const botao = el<HTMLButtonElement>('btn-enviar-pdf');
+    const original = botao.textContent;
+    botao.disabled = true;
+    botao.textContent = 'Enviando...';
+
+    try {
+      const { mensagem } = await api<{ mensagem: string }>(
+        `/admin/enviar-pdf?codigo=${encodeURIComponent(codigoAtual)}&servico=${servicoAtual}`,
+        { method: 'POST', adminKey: chaveAtual() },
+      );
+      avisar('feedback-exec', 'sucesso', mensagem);
+    } catch (erro) {
+      avisar('feedback-exec', 'erro', traduzirErro(erro, 'Erro ao enviar'));
+    } finally {
+      botao.disabled = false;
+      botao.textContent = original;
+    }
+  }
+
+  // ── Relatório técnico em Markdown ───────────────────────────
+  //
+  // O arquivo .md é lido no navegador com FileReader e enviado como JSON, então
+  // upload e editor caem no mesmo endpoint — e o backend não precisa de
+  // python-multipart só para receber um texto.
+
+  interface RelatorioMd {
+    id: number;
+    titulo: string;
+    subtitulo: string | null;
+    versao: string | null;
+    atualizado_em: string;
+  }
+
+  // null = o formulário está criando um relatório novo.
+  let relatorioEmEdicao: number | null = null;
+
+  function limparEditor() {
+    relatorioEmEdicao = null;
+    for (const id of ['md-titulo', 'md-subtitulo', 'md-descricao', 'md-versao', 'md-fonte']) {
+      campo(id).value = '';
+    }
+    el<HTMLButtonElement>('btn-md-novo').hidden = true;
+    el('feedback-md').className = 'feedback';
+  }
+
+  async function carregarRelatorios() {
+    if (!codigoAtual) return;
+
+    try {
+      const { relatorios } = await api<{ relatorios: RelatorioMd[] }>(
+        `/admin/relatorios-md?codigo=${encodeURIComponent(codigoAtual)}`,
+        { adminKey: chaveAtual() },
+      );
+
+      el('md-vazio').hidden = relatorios.length > 0;
+      el('md-lista').replaceChildren(...relatorios.map(linhaRelatorio));
+    } catch (erro) {
+      avisar('feedback-md', 'erro', traduzirErro(erro, 'Erro ao listar relatórios'));
+    }
+  }
+
+  function linhaRelatorio(r: RelatorioMd): HTMLTableRowElement {
+    const tr = document.createElement('tr');
+
+    const titulo = document.createElement('td');
+    titulo.textContent = r.subtitulo ? `${r.titulo} — ${r.subtitulo}` : r.titulo;
+
+    const versao = document.createElement('td');
+    versao.textContent = r.versao || '—';
+
+    const data = document.createElement('td');
+    data.textContent = new Date(r.atualizado_em).toLocaleString('pt-BR');
+
+    const acoes = document.createElement('td');
+    acoes.className = 'col-acao';
+    acoes.append(
+      acao('abrir', () => abrirRelatorio(r.id)),
+      acao('PDF', () => baixarRelatorio(r.id)),
+      acao('excluir', () => excluirRelatorio(r.id)),
+    );
+
+    tr.append(titulo, versao, data, acoes);
+    return tr;
+  }
+
+  function acao(rotulo: string, aoClicar: () => void): HTMLButtonElement {
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'link-acao';
+    botao.textContent = rotulo;
+    botao.addEventListener('click', aoClicar);
+    return botao;
+  }
+
+  async function abrirRelatorio(id: number) {
+    try {
+      const r = await api<RelatorioMd & { markdown: string; descricao: string | null }>(
+        `/admin/relatorios-md/${id}`,
+        { adminKey: chaveAtual() },
+      );
+
+      relatorioEmEdicao = id;
+      campo('md-titulo').value = r.titulo;
+      campo('md-subtitulo').value = r.subtitulo ?? '';
+      campo('md-descricao').value = r.descricao ?? '';
+      campo('md-versao').value = r.versao ?? '';
+      campo('md-fonte').value = r.markdown;
+
+      el<HTMLButtonElement>('btn-md-novo').hidden = false;
+      avisar('feedback-md', 'sucesso', `Editando o relatório #${id}.`);
+    } catch (erro) {
+      avisar('feedback-md', 'erro', traduzirErro(erro, 'Erro ao abrir'));
+    }
+  }
+
+  async function salvarRelatorio() {
+    if (!codigoAtual) return avisar('feedback-md', 'erro', 'Busque uma triagem primeiro.');
+
+    const markdown = campo('md-fonte').value;
+    if (!markdown.trim()) {
+      return avisar('feedback-md', 'erro', 'O relatório está vazio.');
+    }
+
+    const botao = el<HTMLButtonElement>('btn-md-salvar');
+    botao.disabled = true;
+
+    const corpo = {
+      codigo: codigoAtual,
+      markdown,
+      titulo: campo('md-titulo').value.trim(),
+      subtitulo: campo('md-subtitulo').value.trim(),
+      descricao: campo('md-descricao').value.trim(),
+      versao: campo('md-versao').value.trim(),
+    };
+
+    try {
+      const salvo = await api<{ id: number }>(
+        relatorioEmEdicao
+          ? `/admin/relatorios-md/${relatorioEmEdicao}`
+          : '/admin/relatorios-md',
+        { method: relatorioEmEdicao ? 'PUT' : 'POST', adminKey: chaveAtual(), body: corpo },
+      );
+
+      relatorioEmEdicao = salvo.id;
+      el<HTMLButtonElement>('btn-md-novo').hidden = false;
+      avisar('feedback-md', 'sucesso', 'Relatório salvo.');
+      await carregarRelatorios();
+    } catch (erro) {
+      avisar('feedback-md', 'erro', traduzirErro(erro, 'Erro ao salvar'));
+    } finally {
+      botao.disabled = false;
+    }
+  }
+
+  async function baixarRelatorio(id: number) {
+    try {
+      await baixarPdf(
+        `/admin/relatorios-md/${id}.pdf`,
+        `relatorio-tecnico-${codigoAtual}.pdf`,
+        chaveAtual(),
+      );
+    } catch (erro) {
+      avisar('feedback-md', 'erro', traduzirErro(erro, 'Erro ao gerar PDF'));
+    }
+  }
+
+  async function excluirRelatorio(id: number) {
+    if (!confirm(`Excluir o relatório #${id}? Isso não pode ser desfeito.`)) return;
+
+    try {
+      await api(`/admin/relatorios-md/${id}`, { method: 'DELETE', adminKey: chaveAtual() });
+      if (relatorioEmEdicao === id) limparEditor();
+      await carregarRelatorios();
+    } catch (erro) {
+      avisar('feedback-md', 'erro', traduzirErro(erro, 'Erro ao excluir'));
+    }
+  }
+
+  el('md-arquivo').addEventListener('change', (evento) => {
+    const arquivo = (evento.target as HTMLInputElement).files?.[0];
+    if (!arquivo) return;
+
+    const leitor = new FileReader();
+    leitor.onload = () => {
+      campo('md-fonte').value = String(leitor.result);
+      // Arquivo carregado começa um relatório novo, não sobrescreve o aberto.
+      relatorioEmEdicao = null;
+      el<HTMLButtonElement>('btn-md-novo').hidden = true;
+      avisar('feedback-md', 'sucesso', `${arquivo.name} carregado no editor.`);
+    };
+    leitor.onerror = () => avisar('feedback-md', 'erro', 'Não foi possível ler o arquivo.');
+    leitor.readAsText(arquivo);
+
+    // Zera para que escolher o mesmo arquivo de novo dispare o change.
+    (evento.target as HTMLInputElement).value = '';
+  });
+
+  el('btn-md-salvar').addEventListener('click', salvarRelatorio);
+  el('btn-md-novo').addEventListener('click', limparEditor);
+  el('btn-md-pdf').addEventListener('click', async () => {
+    await salvarRelatorio();
+    if (relatorioEmEdicao) await baixarRelatorio(relatorioEmEdicao);
+  });
+
+  // ── Ligações ────────────────────────────────────────────────
+
+  el('item-catalogo').addEventListener('change', (evento) => {
+    const opcao = (evento.target as HTMLSelectElement).selectedOptions[0];
+    if (opcao?.dataset.nome) {
+      campo('item-nome').value = opcao.dataset.nome;
+      campo('item-valor').value = opcao.dataset.valor!;
+    }
+  });
+
+  el('btn-add-item').addEventListener('click', adicionarItem);
+  el('btn-salvar').addEventListener('click', () => salvar(false));
+  el('btn-pdf').addEventListener('click', () => salvar(true));
+  el('btn-enviar-pdf').addEventListener('click', enviarPdf);
+
+  el('btn-voltar').addEventListener('click', () => {
+    mostrarDetalhe(false);
+    document.dispatchEvent(new CustomEvent('admin:voltar'));
+  });
+
+  // A lista dispara isto ao clicar em "abrir" — e também quando a URL traz
+  // ?codigo=&servico=, que é o link do e-mail de nova triagem.
+  document.addEventListener('admin:abrir', (evento) => {
+    const { codigo, servico } = (evento as CustomEvent).detail;
+    abrir(codigo, servico);
+  });
+</script>
