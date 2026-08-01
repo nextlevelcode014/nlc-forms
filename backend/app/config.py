@@ -6,6 +6,16 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 SERVICOS_VALIDOS = {"suporte", "seguranca", "desenvolvimento"}
 
+# Nome do serviço como o cliente lê. Mesmos rótulos do ROTULO_SERVICO em
+# frontend/shared/lib/triagem.ts — quando um lado muda, o outro precisa mudar
+# junto. (O notify.py ainda carrega três cópias deste mapa; migrar para cá é
+# limpeza pendente, não parte desta mudança.)
+ROTULO_SERVICO = {
+    "suporte": "Suporte Técnico",
+    "seguranca": "Segurança & Privacidade",
+    "desenvolvimento": "Dev & Automação",
+}
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(

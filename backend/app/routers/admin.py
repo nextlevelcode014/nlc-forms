@@ -89,6 +89,169 @@ def buscar_triagem_para_painel(
         conn.close()
 
 
+@router.delete("/admin/triagem/{codigo}")
+def excluir_triagem(
+    codigo: str,
+    servico: str = Query(...),
+    x_admin_key: str | None = Header(default=None),
+):
+    """Apaga a triagem e tudo que pende dela: execução e relatórios técnicos.
+
+    Não há FOREIGN KEY no schema, então a cascata é feita na mão. Deixar só a
+    triagem sair criaria uma execução órfã — `execucao.codigo` é UNIQUE, e o
+    órfão bloquearia um código futuro que caísse igual, além de continuar
+    somando na lista pelo LEFT JOIN.
+
+    Um commit só: ou some tudo, ou não some nada.
+    """
+    checar_admin(x_admin_key)
+
+    if servico not in TABELAS_POR_SERVICO:
+        raise HTTPException(status_code=400, detail="Serviço inválido.")
+
+    tabela = TABELAS_POR_SERVICO[servico]
+    conn = get_db()
+    try:
+        alvo = conn.execute(
+            f"SELECT codigo FROM {tabela} WHERE codigo = ?", (codigo,)
+        ).fetchone()
+        if alvo is None:
+            raise HTTPException(status_code=404, detail="Triagem não encontrada.")
+
+        relatorios = conn.execute(
+            "DELETE FROM relatorios_md WHERE codigo = ?", (codigo,)
+        ).rowcount
+        execucoes = conn.execute(
+            "DELETE FROM execucao WHERE codigo = ?", (codigo,)
+        ).rowcount
+        conn.execute(f"DELETE FROM {tabela} WHERE codigo = ?", (codigo,))
+        conn.commit()
+
+        return {
+            "ok": True,
+            "codigo": codigo,
+            "execucao_removida": execucoes > 0,
+            "relatorios_removidos": relatorios,
+        }
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+# ── Cruzamento de cliente entre serviços ─────────────────────
+#
+# A lista de clientes é por triagem, e uma triagem vive numa tabela por serviço.
+# Quem atendeu a mesma pessoa em suporte e depois em segurança via duas linhas
+# sem relação. As duas rotas abaixo ligam esses pontos pelo e-mail, que é o que
+# o cliente tem de estável — o código muda a cada triagem.
+
+
+def _triagens_por_email(conn, email: str) -> list[dict]:
+    """Todas as triagens de um e-mail, nos três serviços, com o status de cada."""
+    encontradas = []
+    for servico, tabela in TABELAS_POR_SERVICO.items():
+        linhas = conn.execute(
+            f"""
+            SELECT t.codigo, t.nome, t.email, t.telefone, t.criado_em,
+                   e.status, e.valor_total, e.data_atendimento
+              FROM {tabela} t
+              LEFT JOIN execucao e ON e.codigo = t.codigo
+             WHERE LOWER(TRIM(t.email)) = LOWER(TRIM(?))
+             ORDER BY t.criado_em DESC
+            """,
+            (email,),
+        ).fetchall()
+        for linha in linhas:
+            encontradas.append({**dict(linha), "servico": servico})
+
+    encontradas.sort(key=lambda t: t["criado_em"] or "", reverse=True)
+    return encontradas
+
+
+@router.get("/admin/cliente")
+def buscar_cliente(
+    email: str = Query(...),
+    x_admin_key: str | None = Header(default=None),
+):
+    """Ficha do cliente: tudo que este e-mail já abriu, em qualquer serviço."""
+    checar_admin(x_admin_key)
+
+    conn = get_db()
+    try:
+        triagens = _triagens_por_email(conn, email)
+        if not triagens:
+            raise HTTPException(
+                status_code=404, detail="Nenhuma triagem para este e-mail."
+            )
+
+        return {
+            "email": email,
+            # O nome pode ter sido digitado diferente a cada formulário; vale o
+            # mais recente, que é o que o cliente usa hoje.
+            "nome": triagens[0]["nome"],
+            "servicos": sorted({t["servico"] for t in triagens}),
+            "total": len(triagens),
+            "triagens": triagens,
+        }
+    finally:
+        conn.close()
+
+
+@router.get("/admin/clientes-cruzados")
+def listar_clientes_cruzados(
+    x_admin_key: str | None = Header(default=None),
+):
+    """E-mails presentes em mais de um serviço.
+
+    É a resposta para "quem já me contratou para mais de uma coisa" — a lista
+    normal nunca mostra isso, porque cada triagem aparece como uma linha solta.
+    """
+    checar_admin(x_admin_key)
+
+    unions = " UNION ALL ".join(
+        f"SELECT LOWER(TRIM(email)) AS chave, email, nome, criado_em, '{s}' AS servico "
+        f"FROM {tabela}"
+        for s, tabela in TABELAS_POR_SERVICO.items()
+    )
+
+    conn = get_db()
+    try:
+        linhas = conn.execute(
+            f"""
+            SELECT chave,
+                   MAX(email)      AS email,
+                   COUNT(*)        AS triagens,
+                   MAX(criado_em)  AS ultima,
+                   GROUP_CONCAT(DISTINCT servico) AS servicos
+              FROM ({unions})
+             GROUP BY chave
+            HAVING COUNT(DISTINCT servico) > 1
+             ORDER BY ultima DESC
+            """
+        ).fetchall()
+
+        clientes = []
+        for linha in linhas:
+            item = dict(linha)
+            # GROUP_CONCAT devolve "suporte,seguranca"; o painel quer uma lista.
+            item["servicos"] = sorted((item["servicos"] or "").split(","))
+            # O nome sai de uma consulta à parte: MAX(nome) devolveria o maior
+            # em ordem alfabética, não o mais recente, e o painel mostraria um
+            # nome antigo para quem corrigiu a grafia depois.
+            item["nome"] = _triagens_por_email(conn, item["email"])[0]["nome"]
+            item.pop("chave")
+            clientes.append(item)
+
+        return {"clientes": clientes, "total": len(clientes)}
+    finally:
+        conn.close()
+
+
 @router.get("/admin/catalogo")
 def listar_catalogo(
     servico: str = Query(...),

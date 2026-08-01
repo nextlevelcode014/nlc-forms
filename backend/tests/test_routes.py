@@ -389,3 +389,168 @@ class TestRegressoes:
     def test_admin_key_errada_rejeita(self):
         r = client.get("/admin/triagens", headers={"X-Admin-Key": "chave-errada"})
         assert r.status_code == 401
+
+
+TRIAGEM_SEGURANCA_VALIDA = {
+    "nome": "Regressão", "email": "reg@test.com", "telefone": "",
+    "perfil": "pessoal", "dispositivos": "notebook", "servicos": "e-mail",
+    "preocupacao": "invasão", "incidente": "nao", "incidente_desc": "",
+    "usa_2fa": "nao", "usa_gerenciador": "nao", "tem_backup": "nao",
+    "modalidade": "remoto", "observacoes": "",
+}
+
+ADMIN = {"X-Admin-Key": "test-admin-key"}
+
+
+def enviar(servico, payload, email=None):
+    """Cria um token, envia a triagem e devolve a resposta."""
+    corpo = dict(payload)
+    if email is not None:
+        corpo["email"] = email
+    token = criar_token(servico)
+    return client.post(f"/triagem/{servico}?token={token}", json=corpo)
+
+
+# ── E-mail repetido: um por serviço, livre entre serviços ──
+
+class TestEmailDuplicado:
+    def test_mesmo_email_no_mesmo_servico_recusa(self):
+        assert enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "ana@test.com").status_code == 201
+
+        r = enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "ana@test.com")
+        assert r.status_code == 409
+        assert "já tem uma triagem" in r.json()["detail"]
+        assert "Suporte Técnico" in r.json()["detail"]
+
+    def test_mesmo_email_em_servico_diferente_aceita(self):
+        assert enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "ana@test.com").status_code == 201
+        assert enviar("seguranca", TRIAGEM_SEGURANCA_VALIDA, "ana@test.com").status_code == 201
+
+    def test_comparacao_ignora_caixa_e_espaco(self):
+        """`Ana@Test.com ` é a mesma caixa postal que `ana@test.com`."""
+        assert enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "ana@test.com").status_code == 201
+
+        r = enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "  Ana@Test.COM  ")
+        assert r.status_code == 409
+
+    def test_recusa_nao_consome_o_token(self):
+        """O cliente corrige o e-mail e reenvia pelo mesmo link.
+
+        A recusa acontece dentro da transação, antes do consumo — se o token
+        fosse marcado assim mesmo, o cliente ficaria sem triagem e sem link.
+        """
+        enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "ana@test.com")
+
+        token = criar_token("suporte")
+        repetido = {**TRIAGEM_SUPORTE_VALIDA, "email": "ana@test.com"}
+        assert client.post(f"/triagem/suporte?token={token}", json=repetido).status_code == 409
+
+        assert client.get(f"/token/{token}/validar?servico=suporte").json()["valido"] is True
+        corrigido = {**TRIAGEM_SUPORTE_VALIDA, "email": "outra@test.com"}
+        assert client.post(f"/triagem/suporte?token={token}", json=corrigido).status_code == 201
+
+
+# ── Exclusão de triagem ──
+
+class TestExcluirTriagem:
+    def _codigo(self, servico="suporte", email="ana@test.com"):
+        payload = TRIAGEM_SUPORTE_VALIDA if servico == "suporte" else TRIAGEM_SEGURANCA_VALIDA
+        return enviar(servico, payload, email).json()["codigo"]
+
+    def test_exclui_e_some_da_lista(self):
+        codigo = self._codigo()
+        r = client.delete(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN)
+        assert r.status_code == 200
+        assert r.json()["ok"] is True
+
+        assert client.get("/admin/triagens", headers=ADMIN).json()["total"] == 0
+
+    def test_exclui_execucao_e_relatorios_junto(self):
+        """Sem a cascata sobrariam órfãos: execucao.codigo é UNIQUE."""
+        codigo = self._codigo()
+        client.post(
+            "/admin/execucao",
+            json={"codigo": codigo, "servico": "suporte", "diagnostico": "x", "itens": []},
+            headers={**ADMIN, "Content-Type": "application/json"},
+        )
+        client.post(
+            "/admin/relatorios-md",
+            json={"codigo": codigo, "titulo": "T", "markdown": "# oi"},
+            headers={**ADMIN, "Content-Type": "application/json"},
+        )
+
+        r = client.delete(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN)
+        assert r.json()["execucao_removida"] is True
+        assert r.json()["relatorios_removidos"] == 1
+
+        conn = get_db()
+        assert conn.execute(
+            "SELECT COUNT(*) c FROM execucao WHERE codigo = ?", (codigo,)
+        ).fetchone()["c"] == 0
+        assert conn.execute(
+            "SELECT COUNT(*) c FROM relatorios_md WHERE codigo = ?", (codigo,)
+        ).fetchone()["c"] == 0
+        conn.close()
+
+    def test_liberado_para_reenviar_o_mesmo_email(self):
+        """Apagar desfaz a trava de duplicata — é a saída para o cliente que volta."""
+        codigo = self._codigo()
+        client.delete(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN)
+        assert enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "ana@test.com").status_code == 201
+
+    def test_codigo_inexistente_404(self):
+        r = client.delete("/admin/triagem/NLC-0000-0000?servico=suporte", headers=ADMIN)
+        assert r.status_code == 404
+
+    def test_servico_invalido_400(self):
+        r = client.delete("/admin/triagem/NLC-0000-0000?servico=nada", headers=ADMIN)
+        assert r.status_code == 400
+
+    def test_exige_chave_de_admin(self):
+        codigo = self._codigo()
+        assert client.delete(f"/admin/triagem/{codigo}?servico=suporte").status_code == 401
+
+
+# ── Cruzamento entre serviços ──
+
+class TestClienteCruzado:
+    def _dois_servicos(self, email="ana@test.com"):
+        enviar("suporte", TRIAGEM_SUPORTE_VALIDA, email)
+        enviar("seguranca", TRIAGEM_SEGURANCA_VALIDA, email)
+
+    def test_ficha_reune_os_servicos(self):
+        self._dois_servicos()
+        r = client.get("/admin/cliente?email=ana@test.com", headers=ADMIN)
+        assert r.status_code == 200
+        assert r.json()["total"] == 2
+        assert r.json()["servicos"] == ["seguranca", "suporte"]
+
+    def test_ficha_ignora_caixa(self):
+        self._dois_servicos()
+        r = client.get("/admin/cliente?email=ANA@TEST.COM", headers=ADMIN)
+        assert r.json()["total"] == 2
+
+    def test_ficha_de_email_sem_triagem_404(self):
+        r = client.get("/admin/cliente?email=ninguem@test.com", headers=ADMIN)
+        assert r.status_code == 404
+
+    def test_cruzados_lista_so_quem_tem_mais_de_um_servico(self):
+        self._dois_servicos("ana@test.com")
+        enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "so-um@test.com")
+
+        r = client.get("/admin/clientes-cruzados", headers=ADMIN)
+        assert r.status_code == 200
+        assert r.json()["total"] == 1
+
+        cliente = r.json()["clientes"][0]
+        assert cliente["email"] == "ana@test.com"
+        assert cliente["servicos"] == ["seguranca", "suporte"]
+        assert cliente["triagens"] == 2
+
+    def test_cruzados_vazio_quando_ninguem_repete(self):
+        enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "so-um@test.com")
+        r = client.get("/admin/clientes-cruzados", headers=ADMIN)
+        assert r.json()["total"] == 0
+
+    def test_cruzados_exige_chave(self):
+        assert client.get("/admin/clientes-cruzados").status_code == 401

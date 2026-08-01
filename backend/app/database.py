@@ -151,6 +151,20 @@ def init_db():
         "CREATE INDEX IF NOT EXISTS idx_relatorios_md_codigo ON relatorios_md(codigo)"
     )
 
+    # Índice por e-mail nas três triagens: sustenta a checagem de duplicata no
+    # envio e o cruzamento de um mesmo cliente entre serviços, que varrem as
+    # três tabelas por e-mail.
+    #
+    # Índice comum, e não UNIQUE, de propósito. `CREATE INDEX IF NOT EXISTS`
+    # alcança banco que já existe — mas um UNIQUE falharia no boot se houvesse
+    # duplicata gravada antes desta regra, e a API deixaria de subir. A unicidade
+    # é garantida na aplicação (routers/triagem.py), onde dá para responder com
+    # uma mensagem que o cliente entende.
+    for tabela in TABELAS_POR_SERVICO.values():
+        conn.execute(
+            f"CREATE INDEX IF NOT EXISTS idx_{tabela}_email ON {tabela}(email)"
+        )
+
     conn.commit()
     conn.close()
 
