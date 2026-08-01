@@ -7,26 +7,28 @@ identidade visual da marca (azul/laranja, monospace no código).
 
 import io
 from datetime import datetime
+from xml.sax.saxutils import escape
+from zoneinfo import ZoneInfo
 
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.lib.colors import HexColor
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable,
-)
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, HRFlowable
 
-# ── Identidade visual ────────────────────────────────────────
-COR_PRIMARIA = HexColor("#2D8FFF")
-COR_ACCENT = HexColor("#F97316")
-COR_TEXTO = HexColor("#1A1A1A")
-COR_MUTED = HexColor("#6B7280")
-COR_BORDA = HexColor("#D1D5DB")
-COR_SECAO_FUNDO = HexColor("#EAF2FE")   # azul bem claro — cabeçalho de seção
-COR_FUNDO_TABELA = HexColor("#F9FAFB")
+from marca import LARGURA_UTIL, DocumentoMarca, construir, cores, estilos
 
-LARGURA_UTIL = 170 * mm  # A4 (210mm) - 20mm margem esquerda - 20mm margem direita
+# Cores e fontes vêm de `marca/`, compartilhadas com o relatório em Markdown.
+# Antes existia uma paleta local aqui (#2D8FFF/#F97316) que não batia nem com o
+# guia da marca nem com o CSS do site.
+COR_PRIMARIA = cores.AZUL
+COR_ACCENT = cores.LARANJA
+COR_TEXTO = cores.TEXTO
+COR_MUTED = cores.MUTED
+COR_BORDA = cores.LINHA
+COR_SECAO_FUNDO = cores.AZUL_QUIET
+COR_FUNDO_TABELA = cores.CINZA_QUIET
+
+FUSO = ZoneInfo("America/Sao_Paulo")
 
 SERVICO_LABEL = {
     "suporte": "Suporte Técnico",
@@ -86,60 +88,79 @@ def _fmt_brl(valor: float) -> str:
 
 
 def _fmt_data(iso_str: str) -> str:
+    """Formata um instante gravado em UTC no horário de Brasília.
+
+    O banco guarda tudo em UTC ingênuo (é o certo: um só referencial). Sem a
+    conversão aqui, toda data no PDF do cliente saía 3h adiantada.
+    """
     if not iso_str:
         return "—"
     try:
         dt = datetime.fromisoformat(iso_str)
-        return dt.strftime("%d/%m/%Y às %H:%M")
     except (ValueError, TypeError):
         return iso_str
 
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+    return dt.astimezone(FUSO).strftime("%d/%m/%Y às %H:%M")
+
+
+def _txt(valor) -> str:
+    """Escapa texto de origem externa antes de virar `Paragraph`.
+
+    O reportlab lê o conteúdo do parágrafo como mini-HTML: um `&` cru levanta
+    exceção e derruba a geração inteira, e `<algo>` some do documento. Isso vale
+    para tudo que o cliente digitou no formulário.
+    """
+    return escape(str(valor)) if valor not in (None, "") else "—"
+
 
 def _build_styles():
-    base = getSampleStyleSheet()
-    styles = {}
+    """Estilos deste documento, derivados dos da marca.
 
-    styles["brand"] = ParagraphStyle(
-        "brand", fontName="Helvetica-Bold", fontSize=15, textColor=COR_PRIMARIA,
+    A base vem de `marca.estilos()` (Poppins nos títulos, Inter no corpo); aqui
+    só ficam os poucos estilos que existem no formato de ordem de serviço e não
+    no relatório longo — total, cabeçalho da O.S. e rodapé legal.
+    """
+    styles = estilos()
+
+    def variacao(origem: str, nome: str, **mudancas) -> ParagraphStyle:
+        estilo = styles[origem].clone(nome)
+        for atributo, valor in mudancas.items():
+            setattr(estilo, atributo, valor)
+        return estilo
+
+    styles["brand"] = variacao(
+        "h2", "brand", fontName="Poppins-Bold", fontSize=15, textColor=cores.AZUL_TEXTO,
+        spaceBefore=0, spaceAfter=0,
     )
-    styles["doc_titulo"] = ParagraphStyle(
-        "doc_titulo", fontName="Helvetica-Bold", fontSize=13,
-        textColor=COR_TEXTO, alignment=TA_RIGHT,
+    styles["doc_titulo"] = variacao(
+        "h3", "doc_titulo", fontSize=13, alignment=TA_RIGHT, spaceBefore=0, spaceAfter=0,
     )
-    styles["secao_header"] = ParagraphStyle(
-        "secao_header", fontName="Helvetica-Bold", fontSize=10.5,
-        textColor=COR_TEXTO, alignment=TA_CENTER,
+    styles["secao_header"] = variacao("secao", "secao_header")
+    styles["campo_label"] = variacao("campo_rotulo", "campo_label", fontSize=9)
+    # `corpo` do documento longo é justificado; na O.S. os blocos são curtos e o
+    # alinhamento à esquerda evita rios de espaço em parágrafos de duas linhas.
+    styles["corpo"] = variacao(
+        "corpo", "corpo_os", fontSize=9.5, leading=14, alignment=TA_LEFT, spaceAfter=0,
     )
-    styles["campo_label"] = ParagraphStyle(
-        "campo_label", fontName="Helvetica-Bold", fontSize=9, textColor=COR_TEXTO,
+    styles["bullet_header"] = variacao(
+        "h3", "bullet_header", fontSize=9.5, spaceBefore=4, spaceAfter=3,
     )
-    styles["campo_valor"] = ParagraphStyle(
-        "campo_valor", fontName="Helvetica", fontSize=9.5, textColor=COR_TEXTO, leading=13,
+    styles["rodape"] = variacao(
+        "legenda", "rodape", fontSize=7.5, textColor=COR_MUTED, alignment=TA_CENTER,
     )
-    styles["corpo"] = ParagraphStyle(
-        "corpo", fontName="Helvetica", fontSize=9.5, textColor=COR_TEXTO, leading=14,
+    styles["total_label"] = variacao(
+        "campo_valor", "total_label", fontName="Poppins-Semi", fontSize=11, alignment=TA_RIGHT,
     )
-    styles["bullet_header"] = ParagraphStyle(
-        "bullet_header", fontName="Helvetica-Bold", fontSize=9.5, textColor=COR_TEXTO,
-        spaceBefore=4, spaceAfter=3,
-    )
-    styles["rodape"] = ParagraphStyle(
-        "rodape", fontName="Helvetica", fontSize=7.5, textColor=COR_MUTED, alignment=TA_CENTER,
-    )
-    styles["total_label"] = ParagraphStyle(
-        "total_label", fontName="Helvetica-Bold", fontSize=11,
-        textColor=COR_TEXTO, alignment=TA_RIGHT,
-    )
-    styles["total_valor"] = ParagraphStyle(
-        "total_valor", fontName="Helvetica-Bold", fontSize=14,
+    styles["total_valor"] = variacao(
+        "campo_valor", "total_valor", fontName="Poppins-Bold", fontSize=14,
         textColor=COR_ACCENT, alignment=TA_RIGHT,
     )
-    styles["tabela_header"] = ParagraphStyle(
-        "tabela_header", fontName="Helvetica-Bold", fontSize=8.5, textColor=COR_MUTED,
+    styles["tabela_header"] = variacao(
+        "tabela_titulo", "tabela_header", fontSize=8.5, textColor=COR_MUTED,
     )
-    styles["tabela_valor"] = ParagraphStyle(
-        "tabela_valor", fontName="Helvetica", fontSize=9, textColor=COR_TEXTO,
-    )
+    styles["tabela_valor"] = variacao("tabela_celula", "tabela_valor", fontSize=9)
     return styles
 
 
@@ -167,8 +188,8 @@ def _campos_box(linhas: list, styles, col_widths=None) -> Table:
     formatadas = []
     for label, valor in linhas:
         formatadas.append([
-            Paragraph(f"{label}:", styles["campo_label"]),
-            Paragraph(str(valor) if valor else "—", styles["campo_valor"]),
+            Paragraph(f"{escape(label)}:", styles["campo_label"]),
+            Paragraph(_txt(valor), styles["campo_valor"]),
         ])
 
     t = Table(formatadas, colWidths=col_widths)
@@ -186,12 +207,23 @@ def _campos_box(linhas: list, styles, col_widths=None) -> Table:
 
 
 def montar_pdf_relatorio(servico: str, triagem: dict, execucao: dict) -> io.BytesIO:
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer, pagesize=A4,
-        topMargin=16 * mm, bottomMargin=16 * mm,
-        leftMargin=20 * mm, rightMargin=20 * mm,
+    """Monta o PDF de orçamento / O.S. Devolve o buffer no início."""
+    codigo_doc = triagem.get("codigo", "—")
+
+    return construir(
+        lambda buffer: DocumentoMarca(
+            buffer, titulo_corrente=f"Orçamento / O.S. · {codigo_doc}"
+        ),
+        lambda: _montar_story(servico, triagem, execucao),
     )
+
+
+def _montar_story(servico: str, triagem: dict, execucao: dict) -> list:
+    """Flowables do documento.
+
+    É uma função, e não uma lista pronta, porque o reportlab consome os flowables
+    ao diagramar — e `construir()` monta o documento duas vezes.
+    """
     styles = _build_styles()
     story = []
 
@@ -203,11 +235,13 @@ def montar_pdf_relatorio(servico: str, triagem: dict, execucao: dict) -> io.Byte
     cab = Table(
         [[
             Paragraph(
-                "NextLevelCode<br/><font size=8 color='#6B7280'>Suporte técnico · Segurança digital · Desenvolvimento</font>",
+                "NextLevelCode<br/><font size=8 color='#555555'>"
+                "Suporte técnico · Segurança digital · Desenvolvimento</font>",
                 styles["brand"],
             ),
             Paragraph(
-                f"ORÇAMENTO / O.S.<br/><font face='Courier-Bold' size=12 color='#F97316'>{codigo}</font>",
+                f"ORÇAMENTO / O.S.<br/><font face='Courier-Bold' size=12 color='#FF7A00'>"
+                f"{escape(str(codigo))}</font>",
                 styles["doc_titulo"],
             ),
         ]],
@@ -260,25 +294,22 @@ def montar_pdf_relatorio(servico: str, triagem: dict, execucao: dict) -> io.Byte
     story.append(_secao_header("Diagnóstico e Atendimento", styles))
 
     conteudo_diag = []
-    if execucao.get("diagnostico"):
-        conteudo_diag.append(Paragraph("Diagnóstico", styles["bullet_header"]))
-        conteudo_diag.append(Paragraph(execucao["diagnostico"], styles["corpo"]))
-        conteudo_diag.append(Spacer(1, 6))
-
-    if execucao.get("servicos_realizados"):
-        conteudo_diag.append(Paragraph("Serviços realizados", styles["bullet_header"]))
-        conteudo_diag.append(Paragraph(execucao["servicos_realizados"], styles["corpo"]))
-        conteudo_diag.append(Spacer(1, 6))
-
-    if execucao.get("recomendacoes"):
-        conteudo_diag.append(Paragraph("Recomendações", styles["bullet_header"]))
-        conteudo_diag.append(Paragraph(execucao["recomendacoes"], styles["corpo"]))
-        conteudo_diag.append(Spacer(1, 4))
+    for rotulo, chave, espaco in (
+        ("Diagnóstico", "diagnostico", 6),
+        ("Serviços realizados", "servicos_realizados", 6),
+        ("Recomendações", "recomendacoes", 4),
+    ):
+        if execucao.get(chave):
+            conteudo_diag.append(Paragraph(rotulo, styles["bullet_header"]))
+            conteudo_diag.append(Paragraph(_txt(execucao[chave]), styles["corpo"]))
+            conteudo_diag.append(Spacer(1, espaco))
 
     status = STATUS_LABEL.get(execucao.get("status", ""), execucao.get("status", "—"))
-    rodape_status = f"<b>Status:</b> {status}"
+    rodape_status = f"<b>Status:</b> {escape(str(status))}"
     if execucao.get("data_atendimento"):
-        rodape_status += f"  ·  <b>Data do atendimento:</b> {execucao['data_atendimento']}"
+        rodape_status += (
+            f"  ·  <b>Data do atendimento:</b> {_txt(execucao['data_atendimento'])}"
+        )
     conteudo_diag.append(Paragraph(rodape_status, styles["corpo"]))
 
     box_diag = Table([[conteudo_diag]], colWidths=[LARGURA_UTIL])
@@ -311,7 +342,7 @@ def montar_pdf_relatorio(servico: str, triagem: dict, execucao: dict) -> io.Byte
             valor_unit = item.get("valor_unitario", 0)
             subtotal = qtd * valor_unit
             linhas_orcamento.append([
-                Paragraph(item.get("nome", ""), styles["tabela_valor"]),
+                Paragraph(_txt(item.get("nome", "")), styles["tabela_valor"]),
                 Paragraph(str(qtd), styles["tabela_valor"]),
                 Paragraph(_fmt_brl(valor_unit), styles["tabela_valor"]),
                 Paragraph(_fmt_brl(subtotal), styles["tabela_valor"]),
@@ -335,7 +366,7 @@ def montar_pdf_relatorio(servico: str, triagem: dict, execucao: dict) -> io.Byte
         story.append(t_orcamento)
 
         valor_total = execucao.get("valor_total", 0)
-        texto_validade = f"Garantia válida até: <b>{validade}</b>" if validade else ""
+        texto_validade = f"Garantia válida até: <b>{_txt(validade)}</b>" if validade else ""
 
         t_rodape_valores = Table(
             [[
@@ -357,9 +388,14 @@ def montar_pdf_relatorio(servico: str, triagem: dict, execucao: dict) -> io.Byte
 
     story.append(Spacer(1, 16))
     story.append(HRFlowable(width="100%", thickness=0.5, color=COR_BORDA, spaceAfter=6))
+    # Import tardio: `app.tempo` puxa `app/__init__`, que importa os routers, que
+    # importam este módulo. No topo do arquivo isso é um ciclo — e só não
+    # explodia porque, na prática, `app` sempre era importado primeiro.
+    from app.tempo import agora_iso
+
     story.append(Paragraph(
-        f"NextLevelCode — documento gerado em {_fmt_data(datetime.utcnow().isoformat())} · "
-        f"código de consulta {codigo}",
+        f"NextLevelCode — documento gerado em {_fmt_data(agora_iso())} · "
+        f"código de consulta {escape(str(codigo))}",
         styles["rodape"],
     ))
     story.append(Paragraph(
@@ -367,6 +403,4 @@ def montar_pdf_relatorio(servico: str, triagem: dict, execucao: dict) -> io.Byte
         styles["rodape"],
     ))
 
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
+    return story
