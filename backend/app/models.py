@@ -1,10 +1,15 @@
 from pydantic import BaseModel
 
 
-class TriagemSuporte(BaseModel):
-    nome: str
-    email: str
+# O contato continua vindo no corpo porque o formulário o mostra pré-preenchido
+# e o cliente pode corrigir — mas ele atualiza a ficha do cliente, não vira
+# coluna da triagem. Quem diz de quem é a triagem é o cliente_id do token.
+class _ComContato(BaseModel):
+    nome: str = ""
     telefone: str = ""
+
+
+class TriagemSuporte(_ComContato):
     problema: str
     quando: str
     causa: str = ""
@@ -21,10 +26,7 @@ class TriagemSuporte(BaseModel):
     observacoes: str = ""
 
 
-class TriagemSeguranca(BaseModel):
-    nome: str
-    email: str
-    telefone: str = ""
+class TriagemSeguranca(_ComContato):
     perfil: str
     dispositivos: str
     servicos: str
@@ -38,10 +40,7 @@ class TriagemSeguranca(BaseModel):
     observacoes: str = ""
 
 
-class TriagemDesenvolvimento(BaseModel):
-    nome: str
-    email: str
-    telefone: str = ""
+class TriagemDesenvolvimento(_ComContato):
     tipo_cliente: str
     tipo_projeto: str
     descricao: str
@@ -55,10 +54,35 @@ class TriagemDesenvolvimento(BaseModel):
     observacoes: str = ""
 
 
+class ClienteRequest(BaseModel):
+    """A pasta. Criada por você, antes de qualquer formulário."""
+
+    nome: str
+    email: str
+    telefone: str = ""
+    notas: str = ""
+
+
 class GerarTokenRequest(BaseModel):
+    # O token carrega o cliente: é isto que faz a triagem cair na pasta certa
+    # mesmo que o cliente digite o e-mail errado no formulário.
+    cliente_id: int
     servico: str
     nota: str = ""
     validade_horas: int | None = None
+
+
+class ContatoRequest(BaseModel):
+    """Correção de contato vinda da página do cliente."""
+
+    telefone: str = ""
+    nome: str = ""
+
+
+class MensagemClienteRequest(BaseModel):
+    """Recado do cliente sobre o atendimento — vira evento no histórico."""
+
+    mensagem: str
 
 
 class ItemOrcamento(BaseModel):

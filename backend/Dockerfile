@@ -14,6 +14,9 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 COPY app app/
+# Só os .sql e o journal. O drizzle-kit e o node_modules ficam de fora de
+# propósito: quem gera a migração é você, na sua máquina; o container só aplica.
+COPY drizzle/migrations drizzle/migrations/
 # marca/ traz os .ttf da Poppins e da Inter versionados. Sem eles o reportlab cai
 # em Helvetica e o PDF sai fora da identidade — por isso as fontes vão na imagem
 # em vez de depender de pacote de fontes do sistema base.

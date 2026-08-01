@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from app.config import ROTULO_SERVICO
+from app.clientes import atualizar_contato, exigir_cliente
+from app.historico import registrar_passo
 from app.models import TriagemSuporte, TriagemSeguranca, TriagemDesenvolvimento
 from app.auth import validar_token, consumir_token, gerar_codigo_consulta
 from app.database import get_db, TABELAS_POR_SERVICO
@@ -11,64 +12,46 @@ from app.tempo import agora_iso
 
 router = APIRouter(tags=["triagem"], dependencies=[Depends(check_rate_limit)])
 
-
-def _recusar_email_repetido(conn, servico: str, email: str) -> None:
-    """Um e-mail só pode ter uma triagem **por serviço**.
-
-    O mesmo cliente pode aparecer em suporte, segurança e desenvolvimento — são
-    atendimentos distintos e o cruzamento entre eles é justamente o que o painel
-    passa a mostrar. O que não pode é a mesma pessoa abrir duas triagens do mesmo
-    serviço e virar dois clientes separados na lista.
-
-    A comparação normaliza caixa e espaço: `Joao@Email.com ` e `joao@email.com`
-    são a mesma caixa postal, e deixar as duas entrarem derrotaria a regra.
-
-    Levantar aqui desfaz a transação inteira, então o token **não** é consumido —
-    o cliente corrige o e-mail e reenvia pelo mesmo link.
-    """
-    tabela = TABELAS_POR_SERVICO[servico]
-    existe = conn.execute(
-        f"SELECT codigo FROM {tabela} WHERE LOWER(TRIM(email)) = LOWER(TRIM(?))",
-        (email,),
-    ).fetchone()
-
-    if existe is not None:
-        rotulo = ROTULO_SERVICO.get(servico, servico)
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"Este e-mail já tem uma triagem de {rotulo}. "
-                "Se você precisa de um novo atendimento, me chame no WhatsApp "
-                "antes de preencher de novo."
-            ),
-        )
+# Contato não é resposta de formulário: ele pertence ao cliente. Chega no corpo
+# porque o formulário mostra os campos pré-preenchidos e permite correção, mas
+# vai para a tabela `clientes`, não para a triagem.
+CAMPOS_DE_CONTATO = {"nome", "telefone"}
 
 
 def _registrar_triagem(servico: str, token: str, data: BaseModel) -> dict:
-    """Grava a triagem e consome o token na mesma transação.
+    """Grava a triagem na pasta do cliente e consome o token, numa transação só.
+
+    Quem diz de quem é a triagem é o `cliente_id` gravado no token, não o que foi
+    digitado na tela. É isso que permite o mesmo cliente abrir quantas triagens
+    precisar — dois notebooks, dois serviços, dois meses depois — sem virar dois
+    clientes, e que um erro de digitação não crie uma pasta fantasma.
 
     Antes o token era marcado como usado e commitado *antes* do INSERT: se a
-    gravação falhasse, o cliente ficava sem triagem e sem link. Agora só existe
-    um commit — ou as duas coisas acontecem, ou nenhuma.
-
-    As colunas do INSERT vêm dos campos do modelo Pydantic (que têm os mesmos
-    nomes das colunas), então o f-string não toca em dado enviado pelo usuário.
+    gravação falhasse, o cliente ficava sem triagem e sem link. Só existe um
+    commit — ou as duas coisas acontecem, ou nenhuma.
     """
     tabela = TABELAS_POR_SERVICO[servico]
     campos = data.model_dump()
-    colunas = ["codigo", "token", "criado_em", *campos]
+    contato = {c: campos.pop(c, "") for c in CAMPOS_DE_CONTATO}
     codigo = gerar_codigo_consulta()
 
     conn = get_db()
     try:
-        validar_token(conn, token, servico)
-        _recusar_email_repetido(conn, servico, data.email)
+        linha_token = validar_token(conn, token, servico)
+        cliente = exigir_cliente(conn, linha_token["cliente_id"])
 
+        colunas = ["codigo", "cliente_id", "token", "criado_em", *campos]
         conn.execute(
             f"INSERT INTO {tabela} ({', '.join(colunas)}) "
             f"VALUES ({', '.join('?' * len(colunas))})",
-            [codigo, token, agora_iso(), *campos.values()],
+            [codigo, cliente["id"], token, agora_iso(), *campos.values()],
         )
+
+        # Correção de contato feita no formulário vale para a ficha inteira: é a
+        # informação mais recente que o cliente deu sobre si.
+        atualizar_contato(conn, cliente["id"], contato["nome"], contato["telefone"])
+
+        registrar_passo(conn, codigo, "recebido")
         consumir_token(conn, token)
         conn.commit()
     except HTTPException:
@@ -82,8 +65,8 @@ def _registrar_triagem(servico: str, token: str, data: BaseModel) -> dict:
 
     # E-mails ficam fora da transação: uma falha de SMTP não pode desfazer
     # uma triagem que já foi gravada.
-    enviar_notificacao_nova_triagem(servico, codigo, data.nome, data.email)
-    notificar_cliente_triagem(servico, codigo, data.nome, data.email)
+    enviar_notificacao_nova_triagem(servico, codigo, cliente["nome"], cliente["email"])
+    notificar_cliente_triagem(servico, codigo, cliente["nome"], cliente["email"])
 
     return {"ok": True, "mensagem": "Triagem recebida com sucesso.", "codigo": codigo}
 

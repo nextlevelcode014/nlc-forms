@@ -27,9 +27,13 @@ def checar_admin(x_admin_key: str | None):
         raise HTTPException(status_code=401, detail="Chave de admin inválida.")
 
 
-def validar_token(conn, token: str, servico: str) -> None:
+def validar_token(conn, token: str, servico: str):
     """Recusa o token se não existir, for de outro serviço, já tiver sido usado
-    ou tiver expirado. Não marca nada — quem consome é `consumir_token`."""
+    ou tiver expirado. Não marca nada — quem consome é `consumir_token`.
+
+    Devolve a linha: quem chama precisa do `cliente_id` gravado nela, que é o
+    que amarra a triagem à pasta certa.
+    """
     row = conn.execute("SELECT * FROM tokens WHERE token = ?", (token,)).fetchone()
 
     if row is None:
@@ -45,6 +49,8 @@ def validar_token(conn, token: str, servico: str) -> None:
 
     if agora() > parse_data(row["expira_em"]):
         raise HTTPException(status_code=403, detail="Este link expirou.")
+
+    return row
 
 
 def consumir_token(conn, token: str) -> None:

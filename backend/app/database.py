@@ -2,6 +2,7 @@ import sqlite3
 import os
 
 from app.config import settings
+from app.migrar import aplicar_migracoes
 
 
 def get_db():
@@ -11,162 +12,20 @@ def get_db():
 
 
 def init_db():
+    """Põe o banco no schema atual aplicando as migrações do Drizzle.
+
+    Antes esta função continha os `CREATE TABLE IF NOT EXISTS` à mão. O problema
+    era o "IF NOT EXISTS": ele cria banco novo, mas nunca alcança banco que já
+    existe — coluna nova pedia ALTER TABLE manual em produção. Agora o schema
+    mora em drizzle/schema.ts e as mudanças chegam sozinhas no boot.
+    """
     pasta = os.path.dirname(settings.db_path)
     if pasta:
         os.makedirs(pasta, exist_ok=True)
-    conn = get_db()
 
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS tokens (
-            token       TEXT PRIMARY KEY,
-            servico     TEXT NOT NULL,
-            criado_em   TEXT NOT NULL,
-            expira_em   TEXT NOT NULL,
-            usado       INTEGER NOT NULL DEFAULT 0,
-            usado_em    TEXT,
-            nota        TEXT
-        )
-    """)
-
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS triagem_suporte (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            codigo        TEXT UNIQUE NOT NULL,
-            token         TEXT,
-            criado_em     TEXT NOT NULL,
-            nome          TEXT NOT NULL,
-            email         TEXT NOT NULL,
-            telefone      TEXT,
-            problema      TEXT NOT NULL,
-            quando        TEXT NOT NULL,
-            causa         TEXT,
-            tentou        TEXT,
-            marca         TEXT NOT NULL,
-            modelo        TEXT,
-            sistema       TEXT NOT NULL,
-            idade         TEXT,
-            armazenamento TEXT,
-            ram           TEXT,
-            tem_backup    TEXT NOT NULL,
-            programas     TEXT NOT NULL,
-            modalidade    TEXT NOT NULL,
-            observacoes   TEXT
-        )
-    """)
-
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS triagem_seguranca (
-            id               INTEGER PRIMARY KEY AUTOINCREMENT,
-            codigo           TEXT UNIQUE NOT NULL,
-            token            TEXT,
-            criado_em        TEXT NOT NULL,
-            nome             TEXT NOT NULL,
-            email            TEXT NOT NULL,
-            telefone         TEXT,
-            perfil           TEXT NOT NULL,
-            dispositivos     TEXT NOT NULL,
-            servicos         TEXT NOT NULL,
-            preocupacao      TEXT NOT NULL,
-            incidente        TEXT NOT NULL,
-            incidente_desc   TEXT,
-            usa_2fa          TEXT NOT NULL,
-            usa_gerenciador  TEXT NOT NULL,
-            tem_backup       TEXT NOT NULL,
-            modalidade       TEXT NOT NULL,
-            observacoes      TEXT
-        )
-    """)
-
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS triagem_desenvolvimento (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            codigo          TEXT UNIQUE NOT NULL,
-            token           TEXT,
-            criado_em       TEXT NOT NULL,
-            nome            TEXT NOT NULL,
-            email           TEXT NOT NULL,
-            telefone        TEXT,
-            tipo_cliente    TEXT NOT NULL,
-            tipo_projeto    TEXT NOT NULL,
-            descricao       TEXT NOT NULL,
-            tem_referencia  TEXT NOT NULL,
-            referencia_url  TEXT,
-            prazo           TEXT NOT NULL,
-            orcamento       TEXT NOT NULL,
-            ja_tem_algo     TEXT NOT NULL,
-            ja_tem_desc     TEXT,
-            stack_preferida TEXT,
-            observacoes     TEXT
-        )
-    """)
-
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS catalogo_itens (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            servico     TEXT NOT NULL,
-            nome        TEXT NOT NULL,
-            valor       REAL NOT NULL,
-            ativo       INTEGER NOT NULL DEFAULT 1
-        )
-    """)
-
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS execucao (
-            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-            codigo              TEXT UNIQUE NOT NULL,
-            servico             TEXT NOT NULL,
-            criado_em           TEXT NOT NULL,
-            atualizado_em       TEXT,
-            status              TEXT NOT NULL DEFAULT 'pendente',
-            diagnostico         TEXT,
-            servicos_realizados TEXT,
-            recomendacoes       TEXT,
-            observacoes_internas TEXT,
-            itens_json          TEXT,
-            valor_total         REAL DEFAULT 0,
-            data_atendimento    TEXT,
-            validade_orcamento  TEXT,
-            pdf_gerado_em       TEXT
-        )
-    """)
-
-    # Guarda o Markdown, não o PDF: o documento é renderizado sob demanda, então
-    # relatório antigo sempre sai no template atual da marca. Salvar o binário
-    # congelaria o histórico numa versão velha da identidade visual.
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS relatorios_md (
-            id             INTEGER PRIMARY KEY AUTOINCREMENT,
-            codigo         TEXT NOT NULL,
-            titulo         TEXT NOT NULL,
-            subtitulo      TEXT,
-            descricao      TEXT,
-            versao         TEXT,
-            markdown       TEXT NOT NULL,
-            criado_em      TEXT NOT NULL,
-            atualizado_em  TEXT NOT NULL
-        )
-    """)
-
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_relatorios_md_codigo ON relatorios_md(codigo)"
-    )
-
-    # Índice por e-mail nas três triagens: sustenta a checagem de duplicata no
-    # envio e o cruzamento de um mesmo cliente entre serviços, que varrem as
-    # três tabelas por e-mail.
-    #
-    # Índice comum, e não UNIQUE, de propósito. `CREATE INDEX IF NOT EXISTS`
-    # alcança banco que já existe — mas um UNIQUE falharia no boot se houvesse
-    # duplicata gravada antes desta regra, e a API deixaria de subir. A unicidade
-    # é garantida na aplicação (routers/triagem.py), onde dá para responder com
-    # uma mensagem que o cliente entende.
-    for tabela in TABELAS_POR_SERVICO.values():
-        conn.execute(
-            f"CREATE INDEX IF NOT EXISTS idx_{tabela}_email ON {tabela}(email)"
-        )
-
-    conn.commit()
-    conn.close()
+    aplicadas = aplicar_migracoes(settings.db_path)
+    if aplicadas:
+        print(f"[migração] aplicada(s): {', '.join(aplicadas)}", flush=True)
 
 
 def seed_catalogo():

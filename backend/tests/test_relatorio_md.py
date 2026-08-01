@@ -35,15 +35,20 @@ Texto do corpo com **negrito**.
 def codigo():
     """Uma triagem real, para o relatório ter a quem se ligar."""
     conn = get_db()
+    # O contato mora em `clientes` desde o modelo de pastas; a triagem só aponta.
+    cliente = conn.execute(
+        "INSERT INTO clientes (nome, email, criado_em, atualizado_em) VALUES (?,?,?,?)",
+        ("Maria Souza", "maria@exemplo.com", agora_iso(), agora_iso()),
+    ).lastrowid
     conn.execute(
         """
         INSERT INTO triagem_suporte
-            (codigo, criado_em, nome, email, problema, quando, marca, sistema,
+            (codigo, cliente_id, criado_em, problema, quando, marca, sistema,
              tem_backup, programas, modalidade)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
         """,
         (
-            "NLC-TEST-0001", agora_iso(), "Maria Souza", "maria@exemplo.com",
+            "NLC-TEST-0001", cliente, agora_iso(),
             "Notebook lento", "Hoje", "Dell", "Windows 11", "Não", "Excel", "Remoto",
         ),
     )

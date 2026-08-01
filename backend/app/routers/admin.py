@@ -7,6 +7,8 @@ from fastapi.responses import StreamingResponse
 from app.config import SERVICOS_VALIDOS, settings
 from app.database import get_db, TABELAS_POR_SERVICO
 from app.auth import checar_admin, gerar_token
+from app.clientes import exigir_cliente
+from app.historico import PASSOS, linha_do_tempo, registrar_se_novo
 from app.models import GerarTokenRequest, RelatorioMdRequest, SalvarExecucaoRequest
 from app.ratelimit import check_rate_limit
 from pdf_relatorio import montar_pdf_relatorio
@@ -15,6 +17,27 @@ from app.notify import enviar_pdf_cliente
 from app.tempo import agora as agora_utc, agora_iso, data_local
 
 router = APIRouter(tags=["admin"], dependencies=[Depends(check_rate_limit)])
+
+
+def _triagem_com_cliente(conn, servico: str, codigo: str) -> dict | None:
+    """A triagem com o contato do cliente embutido.
+
+    O PDF, o e-mail e o painel esperam `nome`/`email`/`telefone` no mesmo dicionário
+    da triagem — era assim quando essas colunas viviam na tabela de triagem. Agora
+    elas moram em `clientes`, e este JOIN mantém o formato de quem consome, sem
+    espalhar a junção por seis lugares.
+    """
+    tabela = TABELAS_POR_SERVICO[servico]
+    linha = conn.execute(
+        f"""
+        SELECT t.*, c.nome, c.email, c.telefone, c.id AS cliente_id
+          FROM {tabela} t
+          JOIN clientes c ON c.id = t.cliente_id
+         WHERE t.codigo = ?
+        """,
+        (codigo,),
+    ).fetchone()
+    return dict(linha) if linha else None
 
 
 @router.post("/admin/gerar-token")
@@ -34,9 +57,16 @@ def gerar_token_endpoint(
 
     conn = get_db()
     try:
+        # O cliente precisa existir antes do link: é ele que define a pasta onde
+        # a triagem vai cair, e sem essa checagem o token guardaria um id morto.
+        exigir_cliente(conn, data.cliente_id)
         conn.execute(
-            "INSERT INTO tokens (token, servico, criado_em, expira_em, nota) VALUES (?,?,?,?,?)",
-            (token, data.servico, criado_em.isoformat(), expira_em.isoformat(), data.nota),
+            """
+            INSERT INTO tokens (token, cliente_id, servico, criado_em, expira_em, nota)
+            VALUES (?,?,?,?,?,?)
+            """,
+            (token, data.cliente_id, data.servico, criado_em.isoformat(),
+             expira_em.isoformat(), data.nota),
         )
         conn.commit()
     finally:
@@ -63,11 +93,7 @@ def buscar_triagem_para_painel(
 
     conn = get_db()
     try:
-        tabela = TABELAS_POR_SERVICO[servico]
-        triagem = conn.execute(
-            f"SELECT * FROM {tabela} WHERE codigo = ?", (codigo,)
-        ).fetchone()
-
+        triagem = _triagem_com_cliente(conn, servico, codigo)
         if triagem is None:
             raise HTTPException(status_code=404, detail="Triagem não encontrada.")
 
@@ -81,9 +107,10 @@ def buscar_triagem_para_painel(
             execucao_dict["itens"] = json.loads(execucao_dict["itens_json"] or "[]")
 
         return {
-            "triagem": dict(triagem),
+            "triagem": triagem,
             "servico": servico,
             "execucao": execucao_dict,
+            "historico": linha_do_tempo(conn, codigo, so_visiveis=False),
         }
     finally:
         conn.close()
@@ -139,115 +166,6 @@ def excluir_triagem(
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        conn.close()
-
-
-# ── Cruzamento de cliente entre serviços ─────────────────────
-#
-# A lista de clientes é por triagem, e uma triagem vive numa tabela por serviço.
-# Quem atendeu a mesma pessoa em suporte e depois em segurança via duas linhas
-# sem relação. As duas rotas abaixo ligam esses pontos pelo e-mail, que é o que
-# o cliente tem de estável — o código muda a cada triagem.
-
-
-def _triagens_por_email(conn, email: str) -> list[dict]:
-    """Todas as triagens de um e-mail, nos três serviços, com o status de cada."""
-    encontradas = []
-    for servico, tabela in TABELAS_POR_SERVICO.items():
-        linhas = conn.execute(
-            f"""
-            SELECT t.codigo, t.nome, t.email, t.telefone, t.criado_em,
-                   e.status, e.valor_total, e.data_atendimento
-              FROM {tabela} t
-              LEFT JOIN execucao e ON e.codigo = t.codigo
-             WHERE LOWER(TRIM(t.email)) = LOWER(TRIM(?))
-             ORDER BY t.criado_em DESC
-            """,
-            (email,),
-        ).fetchall()
-        for linha in linhas:
-            encontradas.append({**dict(linha), "servico": servico})
-
-    encontradas.sort(key=lambda t: t["criado_em"] or "", reverse=True)
-    return encontradas
-
-
-@router.get("/admin/cliente")
-def buscar_cliente(
-    email: str = Query(...),
-    x_admin_key: str | None = Header(default=None),
-):
-    """Ficha do cliente: tudo que este e-mail já abriu, em qualquer serviço."""
-    checar_admin(x_admin_key)
-
-    conn = get_db()
-    try:
-        triagens = _triagens_por_email(conn, email)
-        if not triagens:
-            raise HTTPException(
-                status_code=404, detail="Nenhuma triagem para este e-mail."
-            )
-
-        return {
-            "email": email,
-            # O nome pode ter sido digitado diferente a cada formulário; vale o
-            # mais recente, que é o que o cliente usa hoje.
-            "nome": triagens[0]["nome"],
-            "servicos": sorted({t["servico"] for t in triagens}),
-            "total": len(triagens),
-            "triagens": triagens,
-        }
-    finally:
-        conn.close()
-
-
-@router.get("/admin/clientes-cruzados")
-def listar_clientes_cruzados(
-    x_admin_key: str | None = Header(default=None),
-):
-    """E-mails presentes em mais de um serviço.
-
-    É a resposta para "quem já me contratou para mais de uma coisa" — a lista
-    normal nunca mostra isso, porque cada triagem aparece como uma linha solta.
-    """
-    checar_admin(x_admin_key)
-
-    unions = " UNION ALL ".join(
-        f"SELECT LOWER(TRIM(email)) AS chave, email, nome, criado_em, '{s}' AS servico "
-        f"FROM {tabela}"
-        for s, tabela in TABELAS_POR_SERVICO.items()
-    )
-
-    conn = get_db()
-    try:
-        linhas = conn.execute(
-            f"""
-            SELECT chave,
-                   MAX(email)      AS email,
-                   COUNT(*)        AS triagens,
-                   MAX(criado_em)  AS ultima,
-                   GROUP_CONCAT(DISTINCT servico) AS servicos
-              FROM ({unions})
-             GROUP BY chave
-            HAVING COUNT(DISTINCT servico) > 1
-             ORDER BY ultima DESC
-            """
-        ).fetchall()
-
-        clientes = []
-        for linha in linhas:
-            item = dict(linha)
-            # GROUP_CONCAT devolve "suporte,seguranca"; o painel quer uma lista.
-            item["servicos"] = sorted((item["servicos"] or "").split(","))
-            # O nome sai de uma consulta à parte: MAX(nome) devolveria o maior
-            # em ordem alfabética, não o mais recente, e o painel mostraria um
-            # nome antigo para quem corrigiu a grafia depois.
-            item["nome"] = _triagens_por_email(conn, item["email"])[0]["nome"]
-            item.pop("chave")
-            clientes.append(item)
-
-        return {"clientes": clientes, "total": len(clientes)}
     finally:
         conn.close()
 
@@ -325,6 +243,12 @@ def salvar_execucao(
                 data.data_atendimento, data.validade_orcamento,
             ))
 
+        # O status escolhido no painel vira passo na linha do tempo do cliente,
+        # quando corresponde a um passo conhecido. Assim você atualiza o
+        # andamento num lugar só, em vez de manter status e histórico à mão.
+        if data.status in PASSOS:
+            registrar_se_novo(conn, data.codigo, data.status)
+
         conn.commit()
         return {"ok": True, "valor_total": valor_total}
     except HTTPException:
@@ -355,7 +279,9 @@ def listar_triagens(
     for s in servicos:
         tabela = TABELAS_POR_SERVICO[s]
         unions.append(
-            f"SELECT codigo, nome, email, telefone, criado_em, '{s}' as servico FROM {tabela}"
+            f"SELECT t.codigo, t.cliente_id, c.nome, c.email, c.telefone, "
+            f"t.criado_em, '{s}' as servico "
+            f"FROM {tabela} t JOIN clientes c ON c.id = t.cliente_id"
         )
     subconsulta = " UNION ALL ".join(unions)
 
@@ -416,10 +342,7 @@ def gerar_relatorio_pdf(
 
     conn = get_db()
     try:
-        tabela = TABELAS_POR_SERVICO[servico]
-        triagem = conn.execute(
-            f"SELECT * FROM {tabela} WHERE codigo = ?", (codigo,)
-        ).fetchone()
+        triagem = _triagem_com_cliente(conn, servico, codigo)
         if triagem is None:
             raise HTTPException(status_code=404, detail="Triagem não encontrada.")
 
@@ -436,9 +359,12 @@ def gerar_relatorio_pdf(
             "UPDATE execucao SET pdf_gerado_em = ? WHERE codigo = ?",
             (agora_iso(), codigo),
         )
+        # Gerar o orçamento é um passo que o cliente entende; entra sozinho na
+        # linha do tempo dele. `registrar_se_novo` evita repetir a cada download.
+        registrar_se_novo(conn, codigo, "orcamento_enviado")
         conn.commit()
 
-        triagem_dict = dict(triagem)
+        triagem_dict = triagem
         execucao_dict = dict(execucao)
         execucao_dict["itens"] = json.loads(execucao_dict["itens_json"] or "[]")
 
@@ -468,10 +394,7 @@ def enviar_pdf_cliente_endpoint(
 
     conn = get_db()
     try:
-        tabela = TABELAS_POR_SERVICO[servico]
-        triagem = conn.execute(
-            f"SELECT * FROM {tabela} WHERE codigo = ?", (codigo,)
-        ).fetchone()
+        triagem = _triagem_com_cliente(conn, servico, codigo)
         if triagem is None:
             raise HTTPException(status_code=404, detail="Triagem não encontrada.")
 
@@ -481,7 +404,7 @@ def enviar_pdf_cliente_endpoint(
         if execucao is None:
             raise HTTPException(status_code=400, detail="Nenhuma execução registrada.")
 
-        triagem_dict = dict(triagem)
+        triagem_dict = triagem
         execucao_dict = dict(execucao)
         execucao_dict["itens"] = json.loads(execucao_dict["itens_json"] or "[]")
 

@@ -1,3 +1,4 @@
+import itertools
 import json
 from datetime import timedelta
 
@@ -14,19 +15,40 @@ from app.tempo import agora
 client = TestClient(app)
 
 
-def criar_token(servico="suporte", horas=48):
+_seq = itertools.count(1)
+
+
+def criar_cliente(nome="Cliente Teste", email=None, telefone=""):
+    """Cria a pasta. E-mail único por padrão, para os testes não colidirem."""
+    email = (email or f"cliente{next(_seq)}@test.com").strip().lower()
+    conn = get_db()
+    cursor = conn.execute(
+        "INSERT INTO clientes (nome, email, telefone, criado_em, atualizado_em) "
+        "VALUES (?,?,?,?,?)",
+        (nome, email, telefone, agora().isoformat(), agora().isoformat()),
+    )
+    conn.commit()
+    conn.close()
+    return cursor.lastrowid
+
+
+def criar_token(servico="suporte", horas=48, cliente_id=None):
     """Token válido por `horas` a partir de agora.
 
     As datas são relativas de propósito: antes eram fixas em junho/2026, então
     a suíte inteira passou a falhar sozinha quando essa data ficou no passado.
     """
+    if cliente_id is None:
+        cliente_id = criar_cliente()
+
     token = gerar_token()
     criado = agora()
     conn = get_db()
     conn.execute(
-        "INSERT INTO tokens (token, servico, criado_em, expira_em) VALUES (?,?,?,?)",
+        "INSERT INTO tokens (token, cliente_id, servico, criado_em, expira_em) VALUES (?,?,?,?,?)",
         (
             token,
+            cliente_id,
             servico,
             criado.isoformat(),
             (criado + timedelta(hours=horas)).isoformat(),
@@ -160,7 +182,7 @@ class TestAdmin:
         r = client.post(
             "/admin/gerar-token",
             headers={"X-Admin-Key": "test-admin-key"},
-            json={"servico": "suporte", "validade_horas": 48},
+            json={"servico": "suporte", "cliente_id": criar_cliente(), "validade_horas": 48},
         )
         assert r.status_code == 200
         data = r.json()
@@ -170,7 +192,7 @@ class TestAdmin:
     def test_gerar_token_sem_auth(self):
         r = client.post(
             "/admin/gerar-token",
-            json={"servico": "suporte"},
+            json={"servico": "suporte", "cliente_id": criar_cliente()},
         )
         assert r.status_code == 401
 
@@ -282,11 +304,12 @@ class TestAdmin:
         assert r2.headers["content-type"] == "application/pdf"
 
     def test_enviar_pdf_cliente(self):
-        token = criar_token("suporte")
+        cliente = criar_cliente(email="cli@test.com")
+        token = criar_token("suporte", cliente_id=cliente)
         r = client.post(
             "/triagem/suporte?token=" + token,
             json={
-                "nome": "Email PDF", "email": "cli@test.com", "telefone": "",
+                "nome": "Email PDF", "telefone": "",
                 "problema": "teste", "quando": "hoje", "causa": "",
                 "tentou": "", "marca": "Marca", "modelo": "",
                 "sistema": "Linux", "idade": "", "armazenamento": "",
@@ -357,16 +380,29 @@ class TestRegressoes:
         """
         token = criar_token("suporte")
 
-        conn = get_db()
-        conn.execute("DROP TABLE triagem_suporte")
-        conn.commit()
-        conn.close()
+        # A falha é provocada por colisão de código, não derrubando a tabela.
+        #
+        # O DROP TABLE de antes deixou de funcionar quando o schema passou a vir
+        # de migração: `init_db()` só aplica tags pendentes, e a tag 0000 já está
+        # registrada — então ele não recria nada e o banco fica sem a tabela pelo
+        # resto da suíte. O migrador aplica mudanças; não conserta schema
+        # destruído à mão.
+        primeiro = criar_token("suporte")
+        r1 = client.post(f"/triagem/suporte?token={primeiro}", json=TRIAGEM_SUPORTE_VALIDA)
+        codigo_existente = r1.json()["codigo"]
 
-        r = client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA)
+        import app.routers.triagem as rota
+
+        original = rota.gerar_codigo_consulta
+        rota.gerar_codigo_consulta = lambda: codigo_existente
+        try:
+            r = client.post(
+                f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA
+            )
+        finally:
+            rota.gerar_codigo_consulta = original
+
         assert r.status_code == 500
-
-        from app.database import init_db
-        init_db()
 
         # O link continua válido — dá para tentar de novo.
         assert client.get(f"/token/{token}/validar?servico=suporte").json()["valido"] is True
@@ -411,146 +447,146 @@ def enviar(servico, payload, email=None):
     return client.post(f"/triagem/{servico}?token={token}", json=corpo)
 
 
-# ── E-mail repetido: um por serviço, livre entre serviços ──
-
-class TestEmailDuplicado:
-    def test_mesmo_email_no_mesmo_servico_recusa(self):
-        assert enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "ana@test.com").status_code == 201
-
-        r = enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "ana@test.com")
-        assert r.status_code == 409
-        assert "já tem uma triagem" in r.json()["detail"]
-        assert "Suporte Técnico" in r.json()["detail"]
-
-    def test_mesmo_email_em_servico_diferente_aceita(self):
-        assert enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "ana@test.com").status_code == 201
-        assert enviar("seguranca", TRIAGEM_SEGURANCA_VALIDA, "ana@test.com").status_code == 201
-
-    def test_comparacao_ignora_caixa_e_espaco(self):
-        """`Ana@Test.com ` é a mesma caixa postal que `ana@test.com`."""
-        assert enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "ana@test.com").status_code == 201
-
-        r = enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "  Ana@Test.COM  ")
-        assert r.status_code == 409
-
-    def test_recusa_nao_consome_o_token(self):
-        """O cliente corrige o e-mail e reenvia pelo mesmo link.
-
-        A recusa acontece dentro da transação, antes do consumo — se o token
-        fosse marcado assim mesmo, o cliente ficaria sem triagem e sem link.
-        """
-        enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "ana@test.com")
-
-        token = criar_token("suporte")
-        repetido = {**TRIAGEM_SUPORTE_VALIDA, "email": "ana@test.com"}
-        assert client.post(f"/triagem/suporte?token={token}", json=repetido).status_code == 409
-
-        assert client.get(f"/token/{token}/validar?servico=suporte").json()["valido"] is True
-        corrigido = {**TRIAGEM_SUPORTE_VALIDA, "email": "outra@test.com"}
-        assert client.post(f"/triagem/suporte?token={token}", json=corrigido).status_code == 201
+ADMIN = {"X-Admin-Key": "test-admin-key"}
+JSON_ADMIN = {**ADMIN, "Content-Type": "application/json"}
 
 
-# ── Exclusão de triagem ──
+# ── Cliente como pasta ──
 
-class TestExcluirTriagem:
-    def _codigo(self, servico="suporte", email="ana@test.com"):
-        payload = TRIAGEM_SUPORTE_VALIDA if servico == "suporte" else TRIAGEM_SEGURANCA_VALIDA
-        return enviar(servico, payload, email).json()["codigo"]
-
-    def test_exclui_e_some_da_lista(self):
-        codigo = self._codigo()
-        r = client.delete(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN)
-        assert r.status_code == 200
-        assert r.json()["ok"] is True
-
-        assert client.get("/admin/triagens", headers=ADMIN).json()["total"] == 0
-
-    def test_exclui_execucao_e_relatorios_junto(self):
-        """Sem a cascata sobrariam órfãos: execucao.codigo é UNIQUE."""
-        codigo = self._codigo()
-        client.post(
-            "/admin/execucao",
-            json={"codigo": codigo, "servico": "suporte", "diagnostico": "x", "itens": []},
-            headers={**ADMIN, "Content-Type": "application/json"},
+class TestClientes:
+    def test_cria_e_devolve_a_ficha(self):
+        r = client.post(
+            "/admin/clientes",
+            json={"nome": "Fábio Rocha", "email": "Fabio@Email.COM  ", "telefone": "11999"},
+            headers=JSON_ADMIN,
         )
-        client.post(
-            "/admin/relatorios-md",
-            json={"codigo": codigo, "titulo": "T", "markdown": "# oi"},
-            headers={**ADMIN, "Content-Type": "application/json"},
-        )
+        assert r.status_code == 201
+        # Normalizado na gravação, não só na comparação: é chave de identidade.
+        assert r.json()["email"] == "fabio@email.com"
 
-        r = client.delete(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN)
-        assert r.json()["execucao_removida"] is True
-        assert r.json()["relatorios_removidos"] == 1
+    def test_email_repetido_recusa(self):
+        client.post("/admin/clientes", json={"nome": "A", "email": "a@test.com"}, headers=JSON_ADMIN)
+        r = client.post("/admin/clientes", json={"nome": "B", "email": " A@TEST.com "}, headers=JSON_ADMIN)
+        assert r.status_code == 409
 
-        conn = get_db()
-        assert conn.execute(
-            "SELECT COUNT(*) c FROM execucao WHERE codigo = ?", (codigo,)
-        ).fetchone()["c"] == 0
-        assert conn.execute(
-            "SELECT COUNT(*) c FROM relatorios_md WHERE codigo = ?", (codigo,)
-        ).fetchone()["c"] == 0
-        conn.close()
+    def test_exige_nome_e_email(self):
+        assert client.post("/admin/clientes", json={"nome": " ", "email": "x@t.com"}, headers=JSON_ADMIN).status_code == 400
+        assert client.post("/admin/clientes", json={"nome": "X", "email": "  "}, headers=JSON_ADMIN).status_code == 400
 
-    def test_liberado_para_reenviar_o_mesmo_email(self):
-        """Apagar desfaz a trava de duplicata — é a saída para o cliente que volta."""
-        codigo = self._codigo()
-        client.delete(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN)
-        assert enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "ana@test.com").status_code == 201
-
-    def test_codigo_inexistente_404(self):
-        r = client.delete("/admin/triagem/NLC-0000-0000?servico=suporte", headers=ADMIN)
-        assert r.status_code == 404
-
-    def test_servico_invalido_400(self):
-        r = client.delete("/admin/triagem/NLC-0000-0000?servico=nada", headers=ADMIN)
-        assert r.status_code == 400
-
-    def test_exige_chave_de_admin(self):
-        codigo = self._codigo()
-        assert client.delete(f"/admin/triagem/{codigo}?servico=suporte").status_code == 401
+    def test_exige_chave(self):
+        assert client.post("/admin/clientes", json={"nome": "A", "email": "a@t.com"}).status_code == 401
 
 
-# ── Cruzamento entre serviços ──
+# ── A pasta reúne triagens de qualquer serviço ──
 
-class TestClienteCruzado:
-    def _dois_servicos(self, email="ana@test.com"):
-        enviar("suporte", TRIAGEM_SUPORTE_VALIDA, email)
-        enviar("seguranca", TRIAGEM_SEGURANCA_VALIDA, email)
+class TestPastaDoCliente:
+    def _triar(self, cliente_id, servico, payload):
+        token = criar_token(servico, cliente_id=cliente_id)
+        return client.post(f"/triagem/{servico}?token={token}", json=payload)
 
-    def test_ficha_reune_os_servicos(self):
-        self._dois_servicos()
-        r = client.get("/admin/cliente?email=ana@test.com", headers=ADMIN)
-        assert r.status_code == 200
-        assert r.json()["total"] == 2
+    def test_mesmo_cliente_abre_varias_triagens_do_mesmo_servico(self):
+        """O que a trava antiga proibia. Dois notebooks, duas triagens, um cliente."""
+        cliente = criar_cliente(email="fabio@test.com")
+        assert self._triar(cliente, "suporte", TRIAGEM_SUPORTE_VALIDA).status_code == 201
+        assert self._triar(cliente, "suporte", TRIAGEM_SUPORTE_VALIDA).status_code == 201
+
+        r = client.get(f"/admin/clientes/{cliente}", headers=ADMIN)
+        assert len(r.json()["triagens"]) == 2
+
+    def test_pasta_reune_servicos_diferentes(self):
+        cliente = criar_cliente(email="fabio@test.com")
+        self._triar(cliente, "suporte", TRIAGEM_SUPORTE_VALIDA)
+        self._triar(cliente, "seguranca", TRIAGEM_SEGURANCA_VALIDA)
+
+        r = client.get(f"/admin/clientes/{cliente}", headers=ADMIN)
         assert r.json()["servicos"] == ["seguranca", "suporte"]
 
-    def test_ficha_ignora_caixa(self):
-        self._dois_servicos()
-        r = client.get("/admin/cliente?email=ANA@TEST.COM", headers=ADMIN)
-        assert r.json()["total"] == 2
+    def test_email_digitado_errado_nao_cria_pasta_nova(self):
+        """A pasta vem do token, não do que o cliente escreve."""
+        cliente = criar_cliente(email="fabio@test.com")
+        errado = {**TRIAGEM_SUPORTE_VALIDA, "email": "fabio@gmial.com"}
+        assert self._triar(cliente, "suporte", errado).status_code == 201
 
-    def test_ficha_de_email_sem_triagem_404(self):
-        r = client.get("/admin/cliente?email=ninguem@test.com", headers=ADMIN)
+        assert client.get("/admin/clientes", headers=ADMIN).json()["total"] == 1
+
+    def test_contato_corrigido_no_formulario_atualiza_a_ficha(self):
+        cliente = criar_cliente(nome="Fabio", email="fabio@test.com")
+        corrigido = {**TRIAGEM_SUPORTE_VALIDA, "nome": "Fábio Rocha", "telefone": "11 98888-0000"}
+        self._triar(cliente, "suporte", corrigido)
+
+        ficha = client.get(f"/admin/clientes/{cliente}", headers=ADMIN).json()["cliente"]
+        assert ficha["nome"] == "Fábio Rocha"
+        assert ficha["telefone"] == "11 98888-0000"
+
+    def test_listagem_conta_servicos_distintos(self):
+        cruzado = criar_cliente(email="cruzado@test.com")
+        self._triar(cruzado, "suporte", TRIAGEM_SUPORTE_VALIDA)
+        self._triar(cruzado, "seguranca", TRIAGEM_SEGURANCA_VALIDA)
+        self._triar(criar_cliente(email="so-um@test.com"), "suporte", TRIAGEM_SUPORTE_VALIDA)
+
+        clientes = client.get("/admin/clientes", headers=ADMIN).json()["clientes"]
+        por_email = {c["email"]: c for c in clientes}
+        assert por_email["cruzado@test.com"]["servicos_distintos"] == 2
+        assert por_email["so-um@test.com"]["servicos_distintos"] == 1
+
+    def test_apagar_cliente_leva_a_pasta_inteira(self):
+        cliente = criar_cliente(email="fabio@test.com")
+        self._triar(cliente, "suporte", TRIAGEM_SUPORTE_VALIDA)
+
+        r = client.delete(f"/admin/clientes/{cliente}", headers=ADMIN)
+        assert r.status_code == 200
+        assert r.json()["triagens_removidas"] == 1
+        assert client.get("/admin/triagens", headers=ADMIN).json()["total"] == 0
+
+
+# ── Token amarrado ao cliente ──
+
+class TestTokenComCliente:
+    def test_exige_cliente_existente(self):
+        r = client.post(
+            "/admin/gerar-token",
+            json={"servico": "suporte", "cliente_id": 9999},
+            headers=JSON_ADMIN,
+        )
         assert r.status_code == 404
 
-    def test_cruzados_lista_so_quem_tem_mais_de_um_servico(self):
-        self._dois_servicos("ana@test.com")
-        enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "so-um@test.com")
+    def test_sem_cliente_id_e_recusado(self):
+        r = client.post("/admin/gerar-token", json={"servico": "suporte"}, headers=JSON_ADMIN)
+        assert r.status_code == 422
 
-        r = client.get("/admin/clientes-cruzados", headers=ADMIN)
-        assert r.status_code == 200
-        assert r.json()["total"] == 1
 
-        cliente = r.json()["clientes"][0]
-        assert cliente["email"] == "ana@test.com"
-        assert cliente["servicos"] == ["seguranca", "suporte"]
-        assert cliente["triagens"] == 2
+# ── Linha do tempo ──
 
-    def test_cruzados_vazio_quando_ninguem_repete(self):
-        enviar("suporte", TRIAGEM_SUPORTE_VALIDA, "so-um@test.com")
-        r = client.get("/admin/clientes-cruzados", headers=ADMIN)
-        assert r.json()["total"] == 0
+class TestHistorico:
+    def test_triagem_abre_a_linha_do_tempo(self):
+        token = criar_token("suporte")
+        codigo = client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA).json()["codigo"]
 
-    def test_cruzados_exige_chave(self):
-        assert client.get("/admin/clientes-cruzados").status_code == 401
+        r = client.get(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN)
+        passos = [e["passo"] for e in r.json()["historico"]]
+        assert passos == ["recebido"]
+
+    def test_status_do_atendimento_vira_passo(self):
+        token = criar_token("suporte")
+        codigo = client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA).json()["codigo"]
+
+        client.post(
+            "/admin/execucao",
+            json={"codigo": codigo, "servico": "suporte", "status": "em_execucao", "itens": []},
+            headers=JSON_ADMIN,
+        )
+        r = client.get(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN)
+        assert "em_execucao" in [e["passo"] for e in r.json()["historico"]]
+
+    def test_passo_automatico_nao_repete(self):
+        """Salvar o atendimento duas vezes não pode encher a linha do tempo."""
+        token = criar_token("suporte")
+        codigo = client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA).json()["codigo"]
+
+        corpo = {"codigo": codigo, "servico": "suporte", "status": "em_execucao", "itens": []}
+        client.post("/admin/execucao", json=corpo, headers=JSON_ADMIN)
+        client.post("/admin/execucao", json=corpo, headers=JSON_ADMIN)
+
+        r = client.get(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN)
+        passos = [e["passo"] for e in r.json()["historico"]]
+        assert passos.count("em_execucao") == 1

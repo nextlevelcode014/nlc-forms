@@ -25,13 +25,19 @@ def consultar_triagem(
     resultados = []
     try:
         for servico, tabela in TABELAS_POR_SERVICO.items():
+            # O contato saiu das tabelas de triagem e vive em `clientes`; o JOIN
+            # devolve o mesmo formato de antes para quem consome.
+            base = f"""
+                SELECT t.*, c.nome, c.email, c.telefone
+                  FROM {tabela} t
+                  JOIN clientes c ON c.id = t.cliente_id
+            """
             if codigo:
-                rows = conn.execute(
-                    f"SELECT * FROM {tabela} WHERE codigo = ?", (codigo,)
-                ).fetchall()
+                rows = conn.execute(base + " WHERE t.codigo = ?", (codigo,)).fetchall()
             else:
                 rows = conn.execute(
-                    f"SELECT * FROM {tabela} WHERE email = ? ORDER BY criado_em DESC", (email,)
+                    base + " WHERE c.email = ? ORDER BY t.criado_em DESC",
+                    (email.strip().lower(),),
                 ).fetchall()
 
             for r in rows:

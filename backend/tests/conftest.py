@@ -37,6 +37,8 @@ def setup_db():
     init_db()
     conn = get_db()
     for tabela in (
+        "historico",
+        "clientes",
         "tokens",
         "triagem_suporte",
         "triagem_seguranca",

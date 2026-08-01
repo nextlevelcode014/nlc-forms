@@ -32,13 +32,33 @@ def seed_dados():
 
         agora = agora_utc()
 
+        # ── clientes ──
+        # A pasta vem primeiro: no modelo atual o cliente existe antes de
+        # qualquer formulário, e é o token que leva a triagem até ele.
+        clientes = {}
+        for servico, nome, email, telefone in (
+            ("suporte", "Fábio Rocha", "fabio.rocha@email.com", "(11) 99887-6543"),
+            ("seguranca", "Dona Lúcia Silva", "lucia.silva@email.com", "(21) 97765-4321"),
+            ("desenvolvimento", "Rafael Santos", "rafael.santos@email.com", "(31) 97777-3003"),
+        ):
+            cursor = conn.execute(
+                """
+                INSERT INTO clientes (nome, email, telefone, criado_em, atualizado_em)
+                VALUES (?,?,?,?,?)
+                """,
+                (nome, email, telefone, agora.isoformat(), agora.isoformat()),
+            )
+            clientes[servico] = cursor.lastrowid
+
         # ── tokens ──
         tokens = {}
         for servico in ("suporte", "seguranca", "desenvolvimento"):
             t = _gerar_token()
             conn.execute(
-                "INSERT INTO tokens (token, servico, criado_em, expira_em, usado, nota) VALUES (?,?,?,?,?,?)",
-                (t, servico, agora.isoformat(), (agora + timedelta(days=30)).isoformat(), 1, "Seed automático"),
+                "INSERT INTO tokens (token, cliente_id, servico, criado_em, expira_em, usado, nota) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (t, clientes[servico], servico, agora.isoformat(),
+                 (agora + timedelta(days=30)).isoformat(), 1, "Seed automático"),
             )
             tokens[servico] = t
 
@@ -46,13 +66,12 @@ def seed_dados():
         cod_sup = _gerar_codigo()
         conn.execute("""
             INSERT INTO triagem_suporte
-            (codigo, token, criado_em, nome, email, telefone, problema, quando, causa, tentou,
+            (codigo, cliente_id, token, criado_em, problema, quando, causa, tentou,
              marca, modelo, sistema, idade, armazenamento, ram,
              tem_backup, programas, modalidade, observacoes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
-            cod_sup, tokens["suporte"], agora.isoformat(),
-            "Fábio Rocha", "fabio.rocha@email.com", "(11) 99887-6543",
+            cod_sup, clientes["suporte"], tokens["suporte"], agora.isoformat(),
             "Notebook esquenta demais e desliga sozinho durante edição de vídeo no Premiere",
             "Há 2 semanas, piorando nos últimos 3 dias",
             "Uso pesado: edição de vídeo 4K no Premiere Pro + After Effects abertos simultaneamente",
@@ -91,13 +110,12 @@ def seed_dados():
         cod_seg = _gerar_codigo()
         conn.execute("""
             INSERT INTO triagem_seguranca
-            (codigo, token, criado_em, nome, email, telefone, perfil, dispositivos, servicos,
+            (codigo, cliente_id, token, criado_em, perfil, dispositivos, servicos,
              preocupacao, incidente, incidente_desc, usa_2fa, usa_gerenciador,
              tem_backup, modalidade, observacoes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
-            cod_seg, tokens["seguranca"], agora.isoformat(),
-            "Dona Lúcia Silva", "lucia.silva@email.com", "(21) 97765-4321",
+            cod_seg, clientes["seguranca"], tokens["seguranca"], agora.isoformat(),
             "Aposentada", "1 smartphone Motorola Moto G54, 1 tablet Samsung Galaxy Tab A (usado só pra Netflix)",
             "WhatsApp, Instagram, YouTube, e-mail pessoal (Gmail), Internet Banking (Banco do Brasil)",
             "Entraram no meu WhatsApp e estão pedindo dinheiro para meus contatos", "Sim",
@@ -134,13 +152,12 @@ def seed_dados():
         cod_dev = _gerar_codigo()
         conn.execute("""
             INSERT INTO triagem_desenvolvimento
-            (codigo, token, criado_em, nome, email, telefone, tipo_cliente, tipo_projeto,
+            (codigo, cliente_id, token, criado_em, tipo_cliente, tipo_projeto,
              descricao, tem_referencia, referencia_url, prazo, orcamento,
              ja_tem_algo, ja_tem_desc, stack_preferida, observacoes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (
-            cod_dev, tokens["desenvolvimento"], agora.isoformat(),
-            "Rafael Santos", "rafael.santos@email.com", "(31) 97777-3003",
+            cod_dev, clientes["desenvolvimento"], tokens["desenvolvimento"], agora.isoformat(),
             "Pessoa jurídica (MEI)", "Sistema web personalizado",
             "Preciso de um sistema para gestão de ordens de serviço da minha assistência técnica. Deve ter cadastro de clientes, abertura de OS, controle de status e emissão de relatórios.",
             "Sim", "https://sistema-exemplo.vercel.app",
