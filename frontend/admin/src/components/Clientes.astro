@@ -25,6 +25,25 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
     <button class="btn" id="btn-filtrar">Filtrar</button>
   </div>
 
+  <!-- Cruzamento: quem já contratou mais de um serviço. A lista normal nunca
+       mostra isso, porque cada triagem é uma linha solta. -->
+  <div class="barra-cruzados">
+    <button type="button" class="link-acao" id="btn-cruzados">
+      Clientes em mais de um serviço →
+    </button>
+  </div>
+
+  <div id="painel-cruzados" class="cartao cruzados" hidden>
+    <div class="cartao__topo">
+      <h2 class="cartao__titulo">Clientes em mais de um serviço</h2>
+      <button type="button" class="link-acao" id="btn-fechar-cruzados">fechar</button>
+    </div>
+    <p id="cruzados-vazio" class="aviso-estado" hidden>
+      Ninguém ainda aparece em dois serviços diferentes.
+    </p>
+    <ul class="cruzados__lista" id="cruzados-lista"></ul>
+  </div>
+
   <div id="feedback-lista" class="feedback" role="status" aria-live="polite"></div>
 
   <p id="carregando" class="aviso-estado">Carregando...</p>
@@ -155,7 +174,7 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
 
     tr.append(
       celula(marcado('span', 'mono', t.codigo)),
-      celula(marcado('div', 'cliente-nome', t.nome), marcado('div', 'cliente-email', t.email)),
+      celula(marcado('div', 'cliente-nome', t.nome), porEmail(t.email)),
       celula(marcado('span', 'tag-servico', ROTULO_SERVICO[t.servico] ?? t.servico)),
       celula(
         document.createTextNode(
@@ -188,6 +207,30 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
     return elemento;
   }
 
+  /**
+   * O e-mail vira o filtro do próprio cliente.
+   *
+   * Clicar joga o endereço na busca e zera o filtro de serviço, então as
+   * triagens da mesma pessoa em suporte, segurança e dev aparecem juntas — que
+   * é o cruzamento visto do lado da lista. É <button> e não <a> porque não
+   * navega para lugar nenhum: reconsulta a mesma tela.
+   */
+  function porEmail(email: string): HTMLElement {
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'cliente-email cliente-email--filtro';
+    botao.textContent = email;
+    botao.title = 'Ver todas as triagens deste e-mail';
+    botao.addEventListener('click', () => {
+      el<HTMLInputElement>('busca').value = email;
+      el<HTMLSelectElement>('filtro-servico').value = '';
+      el<HTMLSelectElement>('filtro-status').value = '';
+      pagina = 1;
+      carregar();
+    });
+    return botao;
+  }
+
   /* Abre na mesma página. Era um <a target="_blank"> para outro .html, e cada
      aba nova recomeçava sem sessão — pedindo a chave de novo. */
   function abrir(t: Triagem): HTMLButtonElement {
@@ -202,6 +245,83 @@ import { ROTULO_SERVICO, STATUS_LABEL } from '@nlc/shared/lib/triagem';
     });
     return botao;
   }
+
+  // ── Clientes em mais de um serviço ──────────────────────────
+
+  interface Cruzado {
+    email: string;
+    nome: string;
+    servicos: Servico[];
+    triagens: number;
+    ultima: string | null;
+  }
+
+  async function carregarCruzados() {
+    const painel = el('painel-cruzados');
+    const lista = el('cruzados-lista');
+    const semNada = el('cruzados-vazio');
+
+    painel.hidden = false;
+    lista.replaceChildren();
+    semNada.hidden = true;
+
+    try {
+      const dados = await api<{ clientes: Cruzado[] }>('/admin/clientes-cruzados', {
+        adminKey: chaveAtual(),
+      });
+
+      if (dados.clientes.length === 0) {
+        semNada.hidden = false;
+        return;
+      }
+
+      lista.append(...dados.clientes.map(itemCruzado));
+    } catch (erro) {
+      painel.hidden = true;
+      feedback.className = 'feedback erro';
+      feedback.textContent = traduzirErro(erro, 'Erro ao cruzar clientes');
+    }
+  }
+
+  function itemCruzado(c: Cruzado): HTMLLIElement {
+    const li = document.createElement('li');
+    li.className = 'cruzados__item';
+
+    const identidade = document.createElement('div');
+    identidade.append(
+      marcado('div', 'cliente-nome', c.nome),
+      marcado('div', 'cliente-email', c.email),
+    );
+
+    const servicos = document.createElement('div');
+    servicos.className = 'cruzados__servicos';
+    servicos.append(
+      ...c.servicos.map((s) => marcado('span', 'tag-servico', ROTULO_SERVICO[s] ?? s)),
+    );
+
+    // Reaproveita a busca da lista: um clique põe o e-mail no filtro e as
+    // triagens dos dois serviços aparecem juntas.
+    const ver = document.createElement('button');
+    ver.type = 'button';
+    ver.className = 'link-acao';
+    ver.textContent = `ver as ${c.triagens} →`;
+    ver.addEventListener('click', () => {
+      el<HTMLInputElement>('busca').value = c.email;
+      el<HTMLSelectElement>('filtro-servico').value = '';
+      el<HTMLSelectElement>('filtro-status').value = '';
+      el('painel-cruzados').hidden = true;
+      pagina = 1;
+      carregar();
+    });
+
+    li.append(identidade, servicos, ver);
+    return li;
+  }
+
+  el('btn-cruzados').addEventListener('click', carregarCruzados);
+  el('btn-fechar-cruzados').addEventListener('click', () => {
+    el('painel-cruzados').hidden = true;
+  });
 
   document.addEventListener('admin:entrou', () => {
     // Link vindo do e-mail de nova triagem: abre direto no atendimento.

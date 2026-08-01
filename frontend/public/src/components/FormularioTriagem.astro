@@ -189,9 +189,14 @@ function agrupar(campos: TCampo[]): TCampo[][] {
     } catch (erro) {
       avisar(
         'erro',
-        erro instanceof ErroApi
-          ? `Erro ao enviar: ${erro.message}`
-          : 'Não foi possível conectar ao servidor. Tente novamente.',
+        // 409 é o e-mail já cadastrado neste serviço. A mensagem do backend já
+        // é escrita para o cliente ler ("me chame no WhatsApp"), então prefixar
+        // com "Erro ao enviar" só a deixaria mais assustadora do que o caso é.
+        erro instanceof ErroApi && erro.status === 409
+          ? erro.message
+          : erro instanceof ErroApi
+            ? `Erro ao enviar: ${erro.message}`
+            : 'Não foi possível conectar ao servidor. Tente novamente.',
       );
       botao.disabled = false;
       botao.textContent = 'Enviar triagem →';

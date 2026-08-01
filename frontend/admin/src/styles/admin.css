@@ -436,3 +436,95 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Barra de ações do atendimento ────────────────────────── */
+
+.barra-detalhe {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Vermelho só aqui: é a única ação do painel que destrói dado. Fica como
+   contorno, não preenchido — apagar não deve competir visualmente com salvar. */
+.btn--perigo {
+  background: transparent;
+  border: 1px solid var(--erro);
+  color: var(--erro);
+}
+
+.btn--perigo:hover:not(:disabled) {
+  background: var(--erro-quiet);
+  box-shadow: none;
+}
+
+/* ── Cruzamento entre serviços ────────────────────────────── */
+
+.cruzamento {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+
+.barra-cruzados {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.cruzados {
+  margin-bottom: 1.5rem;
+}
+
+.cruzados__lista {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cruzados__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.cruzados__item:last-child {
+  border-bottom: none;
+}
+
+.cruzados__servicos {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+/* O e-mail da lista virou botão de filtro. Herda tudo do texto que era antes,
+   para a tabela continuar parecendo uma tabela e não uma fileira de botões. */
+.cliente-email--filtro {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cliente-email--filtro:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.cliente-email--filtro:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}

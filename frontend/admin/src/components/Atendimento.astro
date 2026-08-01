@@ -3,9 +3,14 @@ import { STATUS_LABEL } from '@nlc/shared/lib/triagem';
 ---
 
 <div id="detalhe" hidden>
-  <button type="button" class="btn btn--secundario btn-sm voltar" id="btn-voltar">
-    ← Todos os clientes
-  </button>
+  <div class="barra-detalhe">
+    <button type="button" class="btn btn--secundario btn-sm" id="btn-voltar">
+      ← Todos os clientes
+    </button>
+    <button type="button" class="btn btn--perigo btn-sm" id="btn-excluir-triagem">
+      Apagar triagem
+    </button>
+  </div>
 
   <div id="feedback-busca" class="feedback" role="status" aria-live="polite"></div>
 
@@ -18,6 +23,10 @@ import { STATUS_LABEL } from '@nlc/shared/lib/triagem';
         </div>
         <span class="tag-servico" id="cliente-servico">—</span>
         <p class="cliente__meta" id="cliente-meta">—</p>
+
+        <!-- Cruzamento: as outras triagens deste mesmo e-mail. Fica escondido
+             quando o cliente só existe neste serviço, que é o caso comum. -->
+        <p class="cruzamento" id="cruzamento" hidden></p>
 
         <div class="divisoria"></div>
 
@@ -250,6 +259,12 @@ Texto do relatório em Markdown..."></textarea>
     valor: number;
   }
 
+  /** Uma triagem vista de fora, como o cruzamento por e-mail devolve. */
+  interface TriagemResumo {
+    codigo: string;
+    servico: Servico;
+  }
+
   interface Execucao {
     status?: string;
     data_atendimento?: string;
@@ -266,6 +281,7 @@ Texto do relatório em Markdown..."></textarea>
 
   let codigoAtual: string | null = null;
   let servicoAtual: Servico | null = null;
+  let nomeAtual = '';
   let itens: Item[] = [];
   const catalogo = new Map<Servico, ItemCatalogo[]>();
 
@@ -292,10 +308,12 @@ Texto do relatório em Markdown..."></textarea>
 
       codigoAtual = codigo;
       servicoAtual = servico;
+      nomeAtual = dados.triagem.nome ?? '';
 
       desenharTriagem(dados.triagem, servico);
       await carregarCatalogo(servico);
       preencherExecucao(dados.execucao);
+      await carregarCruzamento(dados.triagem.email ?? '', codigo);
 
       mostrarDetalhe(true);
 
@@ -318,6 +336,73 @@ Texto do relatório em Markdown..."></textarea>
   function mostrarDetalhe(visivel: boolean) {
     el('detalhe').hidden = !visivel;
     el('lista').hidden = visivel;
+  }
+
+  // ── Cruzamento entre serviços ───────────────────────────────
+
+  /**
+   * Mostra as outras triagens do mesmo e-mail, em outros serviços.
+   *
+   * O e-mail é a única coisa estável do cliente: o código muda a cada triagem,
+   * e o nome pode vir escrito diferente em cada formulário. Sem isto, atender
+   * alguém que já foi cliente de segurança parecia atender um desconhecido.
+   */
+  async function carregarCruzamento(email: string, codigoAberto: string) {
+    const alvo = el('cruzamento');
+    alvo.replaceChildren();
+    alvo.hidden = true;
+    if (!email) return;
+
+    try {
+      const dados = await api<{ triagens: TriagemResumo[] }>(
+        `/admin/cliente?email=${encodeURIComponent(email)}`,
+        { adminKey: chaveAtual() },
+      );
+
+      const outras = dados.triagens.filter((t) => t.codigo !== codigoAberto);
+      if (outras.length === 0) return;
+
+      alvo.append(document.createTextNode('Este cliente também aparece em: '));
+      outras.forEach((t, i) => {
+        if (i > 0) alvo.append(document.createTextNode(' · '));
+        const botao = document.createElement('button');
+        botao.type = 'button';
+        botao.className = 'link-acao';
+        botao.textContent = `${ROTULO_SERVICO[t.servico] ?? t.servico} (${t.codigo})`;
+        botao.addEventListener('click', () => abrir(t.codigo, t.servico));
+        alvo.append(botao);
+      });
+      alvo.hidden = false;
+    } catch {
+      // Cruzamento é contexto extra, não o atendimento. Falhar aqui não pode
+      // esconder a triagem que o admin veio ver.
+    }
+  }
+
+  // ── Exclusão ────────────────────────────────────────────────
+
+  async function excluirTriagem() {
+    if (!codigoAtual || !servicoAtual) return;
+
+    // O aviso nomeia o cliente e diz o que mais vai junto: a execução e os
+    // relatórios técnicos saem na mesma operação, e nada disso volta.
+    const confirmado = confirm(
+      `Apagar a triagem ${codigoAtual}${nomeAtual ? ` de ${nomeAtual}` : ''}?\n\n` +
+        'O atendimento e os relatórios técnicos deste código também são apagados. ' +
+        'Isso não pode ser desfeito.',
+    );
+    if (!confirmado) return;
+
+    try {
+      await api(`/admin/triagem/${encodeURIComponent(codigoAtual)}?servico=${servicoAtual}`, {
+        method: 'DELETE',
+        adminKey: chaveAtual(),
+      });
+      mostrarDetalhe(false);
+      document.dispatchEvent(new CustomEvent('admin:voltar'));
+    } catch (erro) {
+      avisar('feedback-busca', 'erro', traduzirErro(erro, 'Erro ao apagar'));
+    }
   }
 
   function desenharTriagem(triagem: Record<string, string>, servico: Servico) {
@@ -748,6 +833,8 @@ Texto do relatório em Markdown..."></textarea>
     mostrarDetalhe(false);
     document.dispatchEvent(new CustomEvent('admin:voltar'));
   });
+
+  el('btn-excluir-triagem').addEventListener('click', excluirTriagem);
 
   // A lista dispara isto ao clicar em "abrir" — e também quando a URL traz
   // ?codigo=&servico=, que é o link do e-mail de nova triagem.
