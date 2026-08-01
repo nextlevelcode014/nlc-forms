@@ -80,7 +80,7 @@ def linha_do_tempo(conn, codigo: str, so_visiveis: bool = True) -> list[dict]:
     filtro = "AND visivel_cliente = 1" if so_visiveis else ""
     linhas = conn.execute(
         f"""
-        SELECT passo, detalhe, origem, visivel_cliente, criado_em
+        SELECT id, passo, detalhe, origem, visivel_cliente, criado_em
           FROM historico
          WHERE codigo = ? {filtro}
          ORDER BY criado_em DESC, id DESC

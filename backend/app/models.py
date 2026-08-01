@@ -118,3 +118,16 @@ class SalvarExecucaoRequest(BaseModel):
     itens: list[ItemOrcamento] = []
     data_atendimento: str = ""
     validade_orcamento: str = ""
+
+
+class EventoRequest(BaseModel):
+    """Evento escrito por você na linha do tempo do atendimento."""
+
+    codigo: str
+    # Um dos PASSOS ou "manual". O rótulo do passo aparece para o cliente; o
+    # detalhe é o texto livre.
+    passo: str = "manual"
+    detalhe: str = ""
+    # False registra para você sem mostrar ao cliente — útil para anotar algo do
+    # caso sem transformar em comunicação.
+    visivel_cliente: bool = True

@@ -3,6 +3,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 import smtplib
+from xml.sax.saxutils import escape
 
 from app.config import settings
 
@@ -127,3 +128,29 @@ def enviar_pdf_cliente(
         corpo_html,
         attachments=[att],
     )
+
+
+def notificar_mensagem_cliente(codigo: str, nome: str, mensagem: str):
+    """Avisa você que o cliente escreveu algo na página de acompanhamento.
+
+    O objetivo do recado é sair do WhatsApp e ficar registrado no caso; se você
+    só descobrisse abrindo o painel, ele voltaria para o WhatsApp na hora.
+    """
+    if not settings.smtp_host or not settings.notify_to:
+        print(f"[notificação] SMTP não configurado. Recado de {codigo} não enviado.")
+        return
+
+    link_painel = f"{settings.painel_base_url}/?codigo={codigo}"
+
+    html = f"""
+      <h2 style="font-family:sans-serif;">Recado do cliente</h2>
+      <p style="font-family:sans-serif;"><strong>{escape(nome)}</strong> — {escape(codigo)}</p>
+      <blockquote style="font-family:sans-serif; border-left:3px solid #2196F3;
+                         padding-left:12px; color:#222222;">
+        {escape(mensagem)}
+      </blockquote>
+      <p style="font-family:sans-serif;"><a href="{link_painel}">Abrir no painel</a></p>
+      <p style="color:#555555; font-size:12px; margin-top:2rem;">NextLevelCode</p>
+    """
+
+    _enviar_email(settings.notify_to, f"Recado do cliente — {codigo}", html)

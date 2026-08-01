@@ -8,8 +8,19 @@ from app.config import SERVICOS_VALIDOS, settings
 from app.database import get_db, TABELAS_POR_SERVICO
 from app.auth import checar_admin, gerar_token
 from app.clientes import exigir_cliente
-from app.historico import PASSOS, linha_do_tempo, registrar_se_novo
-from app.models import GerarTokenRequest, RelatorioMdRequest, SalvarExecucaoRequest
+from app.historico import (
+    PASSO_MENSAGEM,
+    PASSOS,
+    linha_do_tempo,
+    registrar_passo,
+    registrar_se_novo,
+)
+from app.models import (
+    EventoRequest,
+    GerarTokenRequest,
+    RelatorioMdRequest,
+    SalvarExecucaoRequest,
+)
 from app.ratelimit import check_rate_limit
 from pdf_relatorio import montar_pdf_relatorio
 from relatorio_md import campos_capa, montar_relatorio_md, separar_frontmatter
@@ -166,6 +177,70 @@ def excluir_triagem(
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@router.get("/admin/passos")
+def listar_passos(x_admin_key: str | None = Header(default=None)):
+    """Os passos pré-definidos, na ordem do atendimento.
+
+    O painel lê daqui em vez de manter a própria lista — passo novo em
+    app/historico.py aparece no seletor sem tocar no frontend.
+    """
+    checar_admin(x_admin_key)
+    return {"passos": [{"passo": p, "rotulo": r} for p, r in PASSOS.items()]}
+
+
+@router.post("/admin/historico", status_code=201)
+def criar_evento(data: EventoRequest, x_admin_key: str | None = Header(default=None)):
+    """Acrescenta um evento à linha do tempo.
+
+    Aceita um passo pré-definido ou texto livre. `mensagem_cliente` é recusado de
+    propósito: ele identifica o que o CLIENTE escreveu, e deixar o painel forjar
+    esse tipo tornaria a origem do recado indistinguível na tela dele.
+    """
+    checar_admin(x_admin_key)
+
+    if data.passo == PASSO_MENSAGEM:
+        raise HTTPException(
+            status_code=400,
+            detail="Este tipo é reservado às mensagens do cliente.",
+        )
+    if data.passo not in PASSOS and data.passo != "manual":
+        raise HTTPException(status_code=400, detail="Passo desconhecido.")
+    if data.passo == "manual" and not data.detalhe.strip():
+        raise HTTPException(
+            status_code=400, detail="Evento manual precisa de uma descrição."
+        )
+
+    conn = get_db()
+    try:
+        registrar_passo(
+            conn,
+            data.codigo,
+            data.passo,
+            data.detalhe,
+            origem="admin",
+            visivel_cliente=data.visivel_cliente,
+        )
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+@router.delete("/admin/historico/{evento_id}")
+def excluir_evento(evento_id: int, x_admin_key: str | None = Header(default=None)):
+    checar_admin(x_admin_key)
+
+    conn = get_db()
+    try:
+        cursor = conn.execute("DELETE FROM historico WHERE id = ?", (evento_id,))
+        conn.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Evento não encontrado.")
+        return {"ok": True}
     finally:
         conn.close()
 

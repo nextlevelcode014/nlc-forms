@@ -590,3 +590,156 @@ class TestHistorico:
         r = client.get(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN)
         passos = [e["passo"] for e in r.json()["historico"]]
         assert passos.count("em_execucao") == 1
+
+
+# ── Acompanhamento público ──
+
+class TestAcompanhar:
+    def _abrir(self, **extra):
+        token = criar_token("suporte")
+        payload = {**TRIAGEM_SUPORTE_VALIDA, **extra}
+        return client.post(f"/triagem/suporte?token={token}", json=payload).json()["codigo"]
+
+    def test_codigo_devolve_o_estado(self):
+        codigo = self._abrir()
+        r = client.get(f"/acompanhar/{codigo}")
+        assert r.status_code == 200
+        d = r.json()
+        assert d["status"] == "recebido"
+        assert d["servico_rotulo"] == "Suporte Técnico"
+        assert [e["passo"] for e in d["historico"]] == ["recebido"]
+
+    def test_nao_vaza_o_dossie(self):
+        """O /consulta antigo devolvia a linha inteira: token, contato, respostas."""
+        codigo = self._abrir()
+        d = client.get(f"/acompanhar/{codigo}").json()
+
+        proibidos = {"token", "email", "telefone", "problema", "observacoes",
+                     "observacoes_internas", "cliente_id", "cliente_email", "id"}
+        assert proibidos & set(d) == set()
+        # E nem dentro da linha do tempo.
+        for evento in d["historico"]:
+            assert set(evento) == {"passo", "rotulo", "detalhe", "origem", "criado_em"}
+
+    def test_mostra_so_o_primeiro_nome(self):
+        """Nome completo confirmaria a identidade a quem achasse um código anotado.
+
+        O nome vem do formulário, não do cadastro: o contato digitado ali
+        atualiza a ficha, então é ele que vale no fim.
+        """
+        token = criar_token("suporte")
+        payload = {**TRIAGEM_SUPORTE_VALIDA, "nome": "Fábio Rocha da Silva"}
+        codigo = client.post(f"/triagem/suporte?token={token}", json=payload).json()["codigo"]
+        assert client.get(f"/acompanhar/{codigo}").json()["cliente"] == "Fábio"
+
+    def test_codigo_inexistente_404(self):
+        assert client.get("/acompanhar/NLC-0000-0000").status_code == 404
+
+    def test_orcamento_aparece_quando_existe(self):
+        codigo = self._abrir()
+        client.post(
+            "/admin/execucao",
+            json={"codigo": codigo, "servico": "suporte", "status": "em_execucao",
+                  "itens": [{"nome": "Limpeza", "quantidade": 1, "valor_unitario": 150.0}]},
+            headers=JSON_ADMIN,
+        )
+        d = client.get(f"/acompanhar/{codigo}").json()
+        assert d["orcamento"]["total"] == 150.0
+        assert d["status"] == "em_execucao"
+
+    def test_evento_invisivel_nao_chega_ao_cliente(self):
+        codigo = self._abrir()
+        client.post(
+            "/admin/historico",
+            json={"codigo": codigo, "passo": "manual", "detalhe": "anotação interna",
+                  "visivel_cliente": False},
+            headers=JSON_ADMIN,
+        )
+        publico = client.get(f"/acompanhar/{codigo}").json()["historico"]
+        assert all("anotação interna" != e["detalhe"] for e in publico)
+
+        painel = client.get(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN).json()
+        assert any("anotação interna" == e["detalhe"] for e in painel["historico"])
+
+
+class TestClienteInterage:
+    def _abrir(self):
+        token = criar_token("suporte")
+        return client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA).json()["codigo"]
+
+    def test_mensagem_entra_na_linha_do_tempo(self):
+        codigo = self._abrir()
+        r = client.post(f"/acompanhar/{codigo}/mensagem",
+                        json={"mensagem": "Esqueci de dizer que ele desliga sozinho"})
+        assert r.status_code == 201
+
+        d = client.get(f"/acompanhar/{codigo}").json()
+        recado = d["historico"][0]
+        assert recado["origem"] == "cliente"
+        assert "desliga sozinho" in recado["detalhe"]
+
+    def test_mensagem_vazia_recusa(self):
+        codigo = self._abrir()
+        assert client.post(f"/acompanhar/{codigo}/mensagem", json={"mensagem": "   "}).status_code == 400
+
+    def test_mensagem_longa_demais_recusa(self):
+        codigo = self._abrir()
+        r = client.post(f"/acompanhar/{codigo}/mensagem", json={"mensagem": "x" * 1001})
+        assert r.status_code == 400
+
+    def test_cliente_corrige_o_telefone(self):
+        codigo = self._abrir()
+        r = client.post(f"/acompanhar/{codigo}/contato", json={"telefone": "11 97777-1234"})
+        assert r.status_code == 200
+
+        painel = client.get(f"/admin/triagem/{codigo}?servico=suporte", headers=ADMIN).json()
+        assert painel["triagem"]["telefone"] == "11 97777-1234"
+
+    def test_cliente_nao_muda_o_email(self):
+        """O e-mail é a identidade da pasta — mudá-lo moveria o histórico."""
+        cliente = criar_cliente(email="dono@test.com")
+        token = criar_token("suporte", cliente_id=cliente)
+        codigo = client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA).json()["codigo"]
+
+        client.post(f"/acompanhar/{codigo}/contato",
+                    json={"nome": "Outro", "telefone": "1", "email": "invasor@test.com"})
+
+        ficha = client.get(f"/admin/clientes/{cliente}", headers=ADMIN).json()["cliente"]
+        assert ficha["email"] == "dono@test.com"
+
+
+class TestEventoManual:
+    def _abrir(self):
+        token = criar_token("suporte")
+        return client.post(f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA).json()["codigo"]
+
+    def test_passo_predefinido(self):
+        codigo = self._abrir()
+        r = client.post("/admin/historico",
+                        json={"codigo": codigo, "passo": "aguardando_peca"}, headers=JSON_ADMIN)
+        assert r.status_code == 201
+        d = client.get(f"/acompanhar/{codigo}").json()
+        assert d["historico"][0]["rotulo"] == "Aguardando peça"
+
+    def test_manual_exige_descricao(self):
+        codigo = self._abrir()
+        r = client.post("/admin/historico",
+                        json={"codigo": codigo, "passo": "manual", "detalhe": " "}, headers=JSON_ADMIN)
+        assert r.status_code == 400
+
+    def test_passo_desconhecido_recusa(self):
+        codigo = self._abrir()
+        r = client.post("/admin/historico",
+                        json={"codigo": codigo, "passo": "inventado"}, headers=JSON_ADMIN)
+        assert r.status_code == 400
+
+    def test_painel_nao_forja_mensagem_de_cliente(self):
+        """Senão a origem do recado ficaria indistinguível na tela do cliente."""
+        codigo = self._abrir()
+        r = client.post("/admin/historico",
+                        json={"codigo": codigo, "passo": "mensagem_cliente", "detalhe": "oi"},
+                        headers=JSON_ADMIN)
+        assert r.status_code == 400
+
+    def test_exige_chave(self):
+        assert client.post("/admin/historico", json={"codigo": "X", "detalhe": "y"}).status_code == 401

@@ -101,3 +101,26 @@ TABELAS_POR_SERVICO = {
     "seguranca": "triagem_seguranca",
     "desenvolvimento": "triagem_desenvolvimento",
 }
+
+
+def localizar_por_codigo(conn, codigo: str):
+    """Acha a triagem pelo código, sem saber o serviço.
+
+    O cliente tem só o código — é o que ele recebeu no fim do formulário e o que
+    ele digita para acompanhar. Descobrir o serviço é trabalho nosso, e por isso
+    varre as três tabelas em vez de exigir `?servico=` como as rotas do painel.
+    """
+    for servico, tabela in TABELAS_POR_SERVICO.items():
+        linha = conn.execute(
+            f"""
+            SELECT t.*, c.nome AS cliente_nome, c.email AS cliente_email,
+                   c.telefone AS cliente_telefone
+              FROM {tabela} t
+              JOIN clientes c ON c.id = t.cliente_id
+             WHERE t.codigo = ?
+            """,
+            (codigo,),
+        ).fetchone()
+        if linha:
+            return servico, linha
+    return None, None
