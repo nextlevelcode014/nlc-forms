@@ -27,6 +27,42 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ── Página de site ───────────────────────────────────────
+   Sem o cartão: as seções vão de ponta a ponta e cada uma controla a própria
+   largura de leitura. O `padding` do body é do modo formulário, onde o cartão
+   precisa de folga contra a borda da tela. */
+
+.corpo--site {
+  padding: 0;
+}
+
+.faixa {
+  inline-size: 100%;
+  padding-inline: 1.5rem;
+}
+
+/* A coluna de leitura. Fica no filho e não na faixa para o fundo poder ir até a
+   borda enquanto o texto para antes. */
+.faixa__interno {
+  max-inline-size: 1080px;
+  margin-inline: auto;
+}
+
+.faixa--cabecalho .cabecalho {
+  margin-bottom: 0;
+}
+
+.faixa--rodape {
+  border-block-start: 1px solid var(--line);
+  margin-block-start: 4rem;
+  padding-block: 2rem;
+}
+
+.faixa--rodape .rodape {
+  margin: 0;
+  max-width: none;
+}
+
 /* ── Container ────────────────────────────────────────────── */
 
 .container {

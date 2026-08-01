@@ -87,9 +87,10 @@ const servicos = [
 <Base
   titulo="NextLevelCode — Suporte técnico, segurança e desenvolvimento"
   descricao="Suporte técnico, segurança digital e desenvolvimento sob medida. Diagnóstico honesto, orçamento fechado e acompanhamento do atendimento em tempo real."
-  largo
+  modo="site"
 >
-  <section class="hero">
+  <section class="faixa faixa--hero">
+    <div class="faixa__interno hero">
     <p class="hero__etiqueta">Liberdade, privacidade e segurança</p>
     <h1 class="hero__titulo">
       Seu computador, suas contas e seus sistemas — cuidados por quem explica o que
@@ -104,13 +105,13 @@ const servicos = [
     <div class="hero__acoes">
       <a class="btn" href="#acompanhar">Acompanhar meu atendimento →</a>
       <a class="btn btn--secundario" href="mailto:work@nextlevelcode.pro">Falar comigo</a>
+      </div>
     </div>
   </section>
 
-  <div class="rule"></div>
-
-  <section aria-labelledby="titulo-servicos">
-    <h2 class="secao__titulo" id="titulo-servicos">O que eu faço</h2>
+  <section class="faixa" aria-labelledby="titulo-servicos">
+    <div class="faixa__interno">
+      <h2 class="secao__titulo" id="titulo-servicos">O que eu faço</h2>
 
     {
       servicos.map((servico) => (
@@ -147,12 +148,12 @@ const servicos = [
         </article>
       ))
     }
+    </div>
   </section>
 
-  <div class="rule"></div>
-
-  <section aria-labelledby="titulo-atendimento">
-    <h2 class="secao__titulo" id="titulo-atendimento">Como o atendimento acontece</h2>
+  <section class="faixa faixa--destaque" aria-labelledby="titulo-atendimento">
+    <div class="faixa__interno">
+      <h2 class="secao__titulo" id="titulo-atendimento">Como o atendimento acontece</h2>
     <ol class="fluxo">
       <li>
         <strong>Você me procura</strong> pelo WhatsApp ou e-mail e conta o que está
@@ -174,12 +175,12 @@ const servicos = [
         <strong>Recebe o orçamento e o relatório</strong> em PDF, com o que foi
         diagnosticado, o que foi feito e o que recomendo daqui pra frente.
       </li>
-    </ol>
+      </ol>
+    </div>
   </section>
 
-  <div class="rule"></div>
-
-  <section id="acompanhar" aria-labelledby="titulo-acompanhar">
+  <section class="faixa" id="acompanhar" aria-labelledby="titulo-acompanhar">
+    <div class="faixa__interno">
     <h2 class="secao__titulo" id="titulo-acompanhar">Acompanhar um atendimento</h2>
     <p class="texto-secao">
       Já tem um código? Veja em que pé está o seu atendimento, com o histórico
@@ -205,12 +206,12 @@ const servicos = [
         />
       </div>
       <button type="submit" class="btn">Acompanhar →</button>
-    </form>
+      </form>
+    </div>
   </section>
 
-  <div class="rule"></div>
-
-  <section class="contato">
+  <section class="faixa faixa--contato">
+    <div class="faixa__interno contato">
     <h2 class="secao__titulo">Vamos conversar</h2>
     <p class="texto-secao">
       Descreva o problema em uma frase — eu digo se resolvo, quanto custa e em quanto
@@ -220,16 +221,36 @@ const servicos = [
       <a class="btn btn--destaque" href="mailto:work@nextlevelcode.pro">
         work@nextlevelcode.pro
       </a>
-    </p>
+      </p>
+    </div>
   </section>
 </Base>
 
 <style>
-  /* ── Hero ─────────────────────────────────────────────── */
+  /* ── Faixas ───────────────────────────────────────────────
+     Cada seção ocupa a largura da janela e a coluna de leitura vive dentro.
+     É o que separa uma página de site de um formulário: o fundo alcança a
+     borda da tela, o texto para antes. */
 
-  .hero {
-    padding-block: 1rem 2.5rem;
+  .faixa--hero {
+    padding-block: clamp(3rem, 9vw, 6.5rem) clamp(2.5rem, 6vw, 4.5rem);
   }
+
+  /* Fundo de apoio marca a seção sem precisar de divisória. A régua ascendente
+     da marca é rara de propósito; empilhar cinco delas numa página só a
+     esvaziaria de significado. */
+  .faixa--destaque {
+    background: var(--bg-subtle);
+    border-block: 1px solid var(--line);
+    padding-block: clamp(2.5rem, 6vw, 4rem);
+    margin-block: clamp(2.5rem, 6vw, 4rem);
+  }
+
+  .faixa--contato {
+    padding-block-start: clamp(2.5rem, 6vw, 4rem);
+  }
+
+  /* ── Hero ─────────────────────────────────────────────── */
 
   .hero__etiqueta {
     font-family: var(--font-heading);

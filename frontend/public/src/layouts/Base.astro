@@ -8,11 +8,20 @@ import '@nlc/shared/styles/base.css';
 interface Props {
   titulo: string;
   descricao?: string;
-  /** Container mais largo, para a home. Os formulários seguem estreitos. */
-  largo?: boolean;
+  /**
+   * `site` tira o cartão centralizado e entrega a página inteira.
+   *
+   * O cartão é a forma certa para formulário: delimita uma tarefa, dá foco e
+   * cabe numa coluna de leitura. Como página de apresentação ele fica errado —
+   * vira uma folha flutuando num fundo escuro em vez de um site. A home é o
+   * mesmo site institucional, só que no domínio do atendimento, e precisa
+   * respirar de ponta a ponta.
+   */
+  modo?: 'formulario' | 'site';
 }
 
-const { titulo, descricao, largo = false } = Astro.props;
+const { titulo, descricao, modo = 'formulario' } = Astro.props;
+const site = modo === 'site';
 ---
 
 <!doctype html>
@@ -32,11 +41,33 @@ const { titulo, descricao, largo = false } = Astro.props;
     <Font cssVariable="--font-body" preload />
   </head>
 
-  <body>
-    <main class:list={['container', { 'container--wide': largo }]}>
-      <Cabecalho href="https://nextlevelcode.pro" />
-      <slot />
-    </main>
-    <Rodape />
+  <body class:list={{ 'corpo--site': site }}>
+    {
+      site ? (
+        <>
+          <div class="faixa faixa--cabecalho">
+            <div class="faixa__interno">
+              <Cabecalho href="https://nextlevelcode.pro" />
+            </div>
+          </div>
+          <main>
+            <slot />
+          </main>
+          <div class="faixa faixa--rodape">
+            <div class="faixa__interno">
+              <Rodape />
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <main class="container">
+            <Cabecalho href="https://nextlevelcode.pro" />
+            <slot />
+          </main>
+          <Rodape />
+        </>
+      )
+    }
   </body>
 </html>
