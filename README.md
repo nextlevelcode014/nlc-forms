@@ -118,7 +118,8 @@ Diagramas completos em [`docs/arquitetura.puml`](docs/arquitetura.puml) e
    — ou escolhe a pasta que já existe, se ele já é cliente
 3. Gera um link de acesso único para o serviço em questão
 4. Manda o link para o cliente
-5. Cliente abre, preenche a triagem, recebe um código (NLC-XXXX-XXXX)
+5. Cliente abre e responde só sobre o caso — contato ele não redigita,
+   já está na pasta. Ao enviar, recebe um código (NLC-XXXX-XXXX)
 6. Você recebe um e-mail de notificação (se SMTP configurado)
 7. Preenche diagnóstico, serviços realizados, recomendações e itens de orçamento
 8. A cada passo, registra um evento no andamento — é o que o cliente lê
@@ -130,6 +131,11 @@ O passo 2 antes não existia: a triagem criava o cadastro a partir do que fosse
 digitado no formulário. O mesmo cliente virava três registros com três grafias do
 próprio nome, e o mesmo e-mail em dois serviços colidia. Agora o `cliente_id`
 viaja no token — quem diz de quem é a triagem é o link, não a digitação.
+
+E como a pasta já existe quando o link é gerado, o formulário deixou de pedir
+contato: perguntar de novo era mandar o cliente redigitar o que já estava
+cadastrado, e o e-mail que ele digitasse nem era usado. Telefone mudou? Ele
+corrige no acompanhamento, que é onde já vai estar.
 
 A chave de admin é digitada **uma vez por sessão** e vive só em memória: nunca vai
 para `localStorage` nem para o disco. Recarregar a página desloga, de propósito.

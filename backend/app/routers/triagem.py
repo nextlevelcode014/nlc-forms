@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from app.clientes import atualizar_contato, exigir_cliente
+from app.clientes import exigir_cliente
 from app.historico import EVENTO_INICIAL, registrar_evento
 from app.models import TriagemSuporte, TriagemSeguranca, TriagemDesenvolvimento
 from app.auth import validar_token, consumir_token, gerar_codigo_consulta
@@ -12,11 +12,6 @@ from app.tempo import agora_iso
 
 router = APIRouter(tags=["triagem"], dependencies=[Depends(check_rate_limit)])
 
-# Contato não é resposta de formulário: ele pertence ao cliente. Chega no corpo
-# porque o formulário mostra os campos pré-preenchidos e permite correção, mas
-# vai para a tabela `clientes`, não para a triagem.
-CAMPOS_DE_CONTATO = {"nome", "telefone"}
-
 
 def _registrar_triagem(servico: str, token: str, data: BaseModel) -> dict:
     """Grava a triagem na pasta do cliente e consome o token, numa transação só.
@@ -26,13 +21,18 @@ def _registrar_triagem(servico: str, token: str, data: BaseModel) -> dict:
     precisar — dois notebooks, dois serviços, dois meses depois — sem virar dois
     clientes, e que um erro de digitação não crie uma pasta fantasma.
 
+    O formulário não pergunta contato: a pasta já existe quando o link é gerado.
+    Antes ele perguntava e esta função separava nome e telefone dos demais campos
+    para atualizar a ficha — era pedir ao cliente que redigitasse o que já estava
+    cadastrado, e o e-mail digitado nem chegava a ser usado. Telefone mudou? Ele
+    corrige no acompanhamento.
+
     Antes o token era marcado como usado e commitado *antes* do INSERT: se a
     gravação falhasse, o cliente ficava sem triagem e sem link. Só existe um
     commit — ou as duas coisas acontecem, ou nenhuma.
     """
     tabela = TABELAS_POR_SERVICO[servico]
     campos = data.model_dump()
-    contato = {c: campos.pop(c, "") for c in CAMPOS_DE_CONTATO}
     codigo = gerar_codigo_consulta()
 
     conn = get_db()
@@ -46,10 +46,6 @@ def _registrar_triagem(servico: str, token: str, data: BaseModel) -> dict:
             f"VALUES ({', '.join('?' * len(colunas))})",
             [codigo, cliente["id"], token, agora_iso(), *campos.values()],
         )
-
-        # Correção de contato feita no formulário vale para a ficha inteira: é a
-        # informação mais recente que o cliente deu sobre si.
-        atualizar_contato(conn, cliente["id"], contato["nome"], contato["telefone"])
 
         registrar_evento(conn, codigo, EVENTO_INICIAL)
         consumir_token(conn, token)

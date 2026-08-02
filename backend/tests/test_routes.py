@@ -205,11 +205,13 @@ class TestAdmin:
         assert "itens" in r.json()
 
     def test_buscar_triagem_admin(self):
-        token = criar_token("suporte")
+        # O nome vem da pasta, não do corpo do formulário: é o cadastro que
+        # define quem é o cliente.
+        cliente = criar_cliente(nome="Admin Test", email="admin@test.com")
+        token = criar_token("suporte", cliente_id=cliente)
         criada = client.post(
             "/triagem/suporte?token=" + token,
             json={
-                "nome": "Admin Test", "email": "admin@test.com", "telefone": "",
                 "problema": "teste", "quando": "hoje", "causa": "",
                 "tentou": "", "marca": "Marca", "modelo": "",
                 "sistema": "Linux", "idade": "", "armazenamento": "",
@@ -341,7 +343,6 @@ class TestAdmin:
 # ── Regressões (bugs corrigidos) ──
 
 TRIAGEM_SUPORTE_VALIDA = {
-    "nome": "Regressão", "email": "reg@test.com", "telefone": "",
     "problema": "teste", "quando": "hoje", "causa": "",
     "tentou": "", "marca": "Marca", "modelo": "",
     "sistema": "Linux", "idade": "", "armazenamento": "",
@@ -428,7 +429,6 @@ class TestRegressoes:
 
 
 TRIAGEM_SEGURANCA_VALIDA = {
-    "nome": "Regressão", "email": "reg@test.com", "telefone": "",
     "perfil": "pessoal", "dispositivos": "notebook", "servicos": "e-mail",
     "preocupacao": "invasão", "incidente": "nao", "incidente_desc": "",
     "usa_2fa": "nao", "usa_gerenciador": "nao", "tem_backup": "nao",
@@ -436,15 +436,6 @@ TRIAGEM_SEGURANCA_VALIDA = {
 }
 
 ADMIN = {"X-Admin-Key": "test-admin-key"}
-
-
-def enviar(servico, payload, email=None):
-    """Cria um token, envia a triagem e devolve a resposta."""
-    corpo = dict(payload)
-    if email is not None:
-        corpo["email"] = email
-    token = criar_token(servico)
-    return client.post(f"/triagem/{servico}?token={token}", json=corpo)
 
 
 ADMIN = {"X-Admin-Key": "test-admin-key"}
@@ -509,14 +500,21 @@ class TestPastaDoCliente:
 
         assert client.get("/admin/clientes", headers=ADMIN).json()["total"] == 1
 
-    def test_contato_corrigido_no_formulario_atualiza_a_ficha(self):
-        cliente = criar_cliente(nome="Fabio", email="fabio@test.com")
-        corrigido = {**TRIAGEM_SUPORTE_VALIDA, "nome": "Fábio Rocha", "telefone": "11 98888-0000"}
-        self._triar(cliente, "suporte", corrigido)
+    def test_formulario_nao_mexe_na_ficha_do_cliente(self):
+        """O formulário deixou de perguntar contato — e não pode mudá-lo.
+
+        Antes ele perguntava e sobrescrevia a ficha. Link já enviado a cliente
+        continua apontando para a versão antiga da página, que ainda manda nome
+        e telefone no corpo; eles têm de ser ignorados, não aplicados. Quem
+        corrige contato é a própria pessoa, no acompanhamento.
+        """
+        cliente = criar_cliente(nome="Fabio", email="fabio@test.com", telefone="11 90000-0000")
+        antigo = {**TRIAGEM_SUPORTE_VALIDA, "nome": "Outro Nome", "telefone": "11 98888-0000"}
+        assert self._triar(cliente, "suporte", antigo).status_code == 201
 
         ficha = client.get(f"/admin/clientes/{cliente}", headers=ADMIN).json()["cliente"]
-        assert ficha["nome"] == "Fábio Rocha"
-        assert ficha["telefone"] == "11 98888-0000"
+        assert ficha["nome"] == "Fabio"
+        assert ficha["telefone"] == "11 90000-0000"
 
     def test_listagem_conta_servicos_distintos(self):
         cruzado = criar_cliente(email="cruzado@test.com")
@@ -732,9 +730,11 @@ class TestAcompanhar:
         assert proibidos & set(d) == set()
 
     def test_mostra_so_o_primeiro_nome(self):
-        token = criar_token("suporte")
-        payload = {**TRIAGEM_SUPORTE_VALIDA, "nome": "Fábio Rocha da Silva"}
-        codigo = client.post(f"/triagem/suporte?token={token}", json=payload).json()["codigo"]
+        cliente = criar_cliente(nome="Fábio Rocha da Silva", email="fabio-primeiro@test.com")
+        token = criar_token("suporte", cliente_id=cliente)
+        codigo = client.post(
+            f"/triagem/suporte?token={token}", json=TRIAGEM_SUPORTE_VALIDA
+        ).json()["codigo"]
         assert client.get(f"/acompanhar/{codigo}").json()["cliente"] == "Fábio"
 
     def test_codigo_inexistente_404(self):

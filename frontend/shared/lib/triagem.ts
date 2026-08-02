@@ -6,9 +6,9 @@
   renderização é a mesma para os três.
 
   Os `nome` batem 1:1 com as colunas de `triagem_suporte`, `triagem_seguranca` e
-  `triagem_desenvolvimento` (backend/app/database.py). Renomear um campo aqui sem
-  renomear a coluna quebra o INSERT em silêncio, porque o backend monta o INSERT
-  a partir das chaves do JSON.
+  `triagem_desenvolvimento` (backend/drizzle/schema.ts). Renomear um campo aqui
+  sem renomear a coluna quebra o INSERT em silêncio, porque o backend monta o
+  INSERT a partir das chaves do JSON.
 
   O admin também lê estes rótulos para exibir a triagem — assim não existem duas
   listas de labels para divergirem.
@@ -45,17 +45,18 @@ export interface Formulario {
   secoes: Secao[];
 }
 
-/** Bloco de contato — idêntico nos três serviços. */
-function contato(placeholderNome = 'Seu nome completo'): Secao {
-  return {
-    titulo: 'Contato',
-    campos: [
-      { nome: 'nome', rotulo: 'Nome', tipo: 'texto', obrigatorio: true, placeholder: placeholderNome, meia: true },
-      { nome: 'email', rotulo: 'E-mail', tipo: 'email', obrigatorio: true, placeholder: 'seu@email.com', meia: true },
-      { nome: 'telefone', rotulo: 'WhatsApp', tipo: 'tel', placeholder: '(11) 99999-9999' },
-    ],
-  };
-}
+/*
+  Não existe mais bloco de contato aqui.
+
+  O cadastro do cliente é feito por quem atende, antes de o link existir — o
+  token já carrega o `cliente_id`, então nome, e-mail e telefone chegam à
+  triagem pela pasta e não pelo que for digitado nesta tela. Perguntar de novo
+  era pedir ao cliente para redigitar o que eu já tinha, e o e-mail digitado
+  aqui nem era gravado: quem decide a pasta é o token.
+
+  Contato desatualizado se corrige no acompanhamento, que é onde o cliente já
+  vai estar. O e-mail continua fora do alcance dele — é a identidade da pasta.
+*/
 
 const MODALIDADE: Campo = {
   nome: 'modalidade',
@@ -78,7 +79,6 @@ export const SUPORTE: Formulario = {
   descricao:
     'Preencha as informações abaixo para que eu possa entender seu problema antes do atendimento.',
   secoes: [
-    contato(),
     {
       titulo: 'Problema',
       campos: [
@@ -190,7 +190,6 @@ export const SEGURANCA: Formulario = {
   descricao:
     'Preencha as informações abaixo para que eu possa entender seu contexto digital antes da assessoria.',
   secoes: [
-    contato(),
     {
       titulo: 'Perfil digital',
       campos: [
@@ -284,7 +283,6 @@ export const DESENVOLVIMENTO: Formulario = {
   descricao:
     'Preencha as informações abaixo para que eu possa entender seu projeto antes de conversarmos.',
   secoes: [
-    contato('Seu nome ou nome da empresa'),
     {
       titulo: 'Sobre o projeto',
       campos: [

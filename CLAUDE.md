@@ -12,7 +12,7 @@ citando o bug que motivou); siga esse estilo em vez de comentar o óbvio.
 ### Backend (FastAPI + SQLite, Python 3.14, uv)
 
 ```bash
-docker compose up -d              # ou: make up
+docker compose up -d --build      # mudou .py? precisa do --build
 curl http://localhost:8000/health
 docker compose logs -f api
 make api-restart                  # derruba, sobe e republica a porta no tailscale
@@ -28,6 +28,12 @@ bun run generate                              # drizzle/schema.ts → drizzle/mi
 ```
 
 Não há linter nem formatter configurado no backend.
+
+**`docker compose restart` não pega mudança de código Python.** O `command` traz
+`--reload`, mas só `/data`, `relatorios_imagens/` e `marca/arte/` são volumes: o
+`app/` está assado na imagem, então não há o que o reload observe. Sem `--build`
+você testa contra a versão anterior e acredita no resultado — foi assim que uma
+verificação de "o formulário não mexe mais na ficha" passou dizendo o contrário.
 
 `bun run generate` **pede TTY**: quando o Drizzle não consegue decidir sozinho se
 uma coluna foi renomeada ou trocada, ele pergunta. Rodado por um agente sem
@@ -112,8 +118,12 @@ não troque `serve` por `funnel` no alvo do painel.
    (`app/routers/triagem.py::_registrar_triagem`), então renomear de um lado só
    quebra sem erro claro. O painel também lê esses rótulos — há uma única lista.
 
-   A exceção é o bloco de contato: `nome` e `telefone` são retirados do payload
-   (`CAMPOS_DE_CONTATO`) e atualizam a ficha do cliente em vez de virarem coluna.
+   O formulário **não pergunta contato**. Nome, e-mail e telefone vêm da pasta,
+   que já existe quando o link é gerado — o token carrega o `cliente_id`. Se um
+   link antigo ainda mandar esses campos no corpo, o Pydantic os ignora
+   (`extra` no padrão) e responde 201: link já enviado a cliente continua
+   valendo. Não transforme isso em erro de validação sem antes conferir se
+   ainda existe token vivo apontando para a página velha.
 
 2. **Schema no Drizzle, migração em Python.** `backend/drizzle/schema.ts` é a
    fonte da verdade. `bun run generate` compara com o histórico e escreve um

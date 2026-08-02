@@ -1,15 +1,15 @@
 from pydantic import BaseModel
 
 
-# O contato continua vindo no corpo porque o formulário o mostra pré-preenchido
-# e o cliente pode corrigir — mas ele atualiza a ficha do cliente, não vira
-# coluna da triagem. Quem diz de quem é a triagem é o cliente_id do token.
-class _ComContato(BaseModel):
-    nome: str = ""
-    telefone: str = ""
-
-
-class TriagemSuporte(_ComContato):
+# Contato não chega mais por aqui: o cliente é cadastrado antes de o link
+# existir, e o token carrega o cliente_id. O formulário só pergunta o que é do
+# atendimento. Correção de telefone acontece no acompanhamento.
+#
+# O `extra` do Pydantic segue no padrão (ignorar), e isso importa: link já
+# enviado a cliente aponta para a versão antiga do formulário, que ainda manda
+# nome e telefone no corpo. Eles são descartados em silêncio em vez de virarem
+# 422 — o link continua funcionando até o deploy alcançar o navegador dele.
+class TriagemSuporte(BaseModel):
     problema: str
     quando: str
     causa: str = ""
@@ -26,7 +26,7 @@ class TriagemSuporte(_ComContato):
     observacoes: str = ""
 
 
-class TriagemSeguranca(_ComContato):
+class TriagemSeguranca(BaseModel):
     perfil: str
     dispositivos: str
     servicos: str
@@ -40,7 +40,7 @@ class TriagemSeguranca(_ComContato):
     observacoes: str = ""
 
 
-class TriagemDesenvolvimento(_ComContato):
+class TriagemDesenvolvimento(BaseModel):
     tipo_cliente: str
     tipo_projeto: str
     descricao: str
