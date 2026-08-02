@@ -387,7 +387,15 @@ input[type='checkbox'] {
 
 /* ── Botões ───────────────────────────────────────────────── */
 
+/* Serve em <button> e em <a>. O `inline-block` e o `text-decoration: none` não
+   são enfeite: um <a> é inline por padrão, então o padding do botão não empurra
+   o que vem antes — no recibo da triagem ele subia 8px POR CIMA do código, e
+   ainda vinha sublinhado, com cara de link. Cada página que usava .btn num <a>
+   remendava isso localmente; aqui resolve para todas de uma vez. */
 .btn {
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
   font-family: var(--font-text);
   font-size: 15px;
   font-weight: 600;
@@ -528,6 +536,13 @@ input[type='checkbox'] {
   color: var(--hot);
   letter-spacing: 0.05em;
   margin-top: 0.5rem;
+}
+
+/* O código é o que o cliente precisa guardar; a ação vem depois, não junto.
+   Colados, o olho lia os dois como um bloco só e o código perdia o destaque
+   que a cor e a fonte mono existem para dar. */
+.estado .btn {
+  margin-top: 1.75rem;
 }
 
 @media (max-width: 520px) {
