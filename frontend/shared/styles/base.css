@@ -665,9 +665,15 @@ input[type='checkbox'] {
   margin-top: 0.2rem;
 }
 
+/* Faixa da ação de saída, no fim do acompanhamento. O fio acima separa "ver
+   este atendimento" de "ver outro" — sem ele o botão lia como mais um controle
+   do cartão de contato logo acima. */
 .rodape-acao {
-  margin-top: 2rem;
-  text-align: center;
+  margin-top: 1.75rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: center;
 }
 
 /* ── Cartão ───────────────────────────────────────────────

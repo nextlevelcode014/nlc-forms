@@ -92,9 +92,15 @@ import Base from '../layouts/Base.astro';
       <div id="feedback-contato" class="feedback" role="status" aria-live="polite"></div>
     </section>
 
-    <p class="rodape-acao">
-      <button type="button" class="link-acao" id="btn-outro">acompanhar outro código</button>
-    </p>
+    {/* Botão e não `.link-acao`: este é o único caminho de volta à busca, e
+        como link de 13px em minúsculas ele sumia embaixo dos cartões. No painel
+        o `.link-acao` funciona porque mora dentro de uma linha de tabela, com
+        contexto ao redor; aqui ele flutua sozinho no fim da página. */}
+    <div class="rodape-acao">
+      <button type="button" class="btn btn--secundario" id="btn-outro">
+        ← Acompanhar outro código
+      </button>
+    </div>
   </div>
 </Base>
 
