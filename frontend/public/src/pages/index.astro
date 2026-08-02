@@ -2,24 +2,29 @@
 import Base from '../layouts/Base.astro';
 
 /*
-  A vitrine. Antes esta página era um atalho para os três formulários — inútil
-  para quem chega, porque cada formulário exige um link de uso único que só eu
-  envio. Agora ela explica o que é feito e como, e oferece a única ação que o
-  visitante realmente pode executar sozinho: acompanhar um atendimento.
+  A vitrine do domínio de atendimento.
 
-  Os itens de cada serviço espelham o catálogo usado nos orçamentos. São duas
-  listas, e é a única duplicação que aceitei: o catálogo tem preço e é interno,
-  esta página é pública e não fala de preço.
+  Antes era um atalho para os três formulários — inútil para quem chega, porque
+  cada formulário exige um link de uso único que só eu envio. Agora ela explica
+  o trabalho e oferece a única ação que o visitante executa sozinho: acompanhar
+  um atendimento pelo código.
+
+  A linguagem visual segue o institucional (nextlevelcode.pro): olho em caixa
+  alta, título grande, serviços como linhas numeradas separadas por fio, régua
+  de 58° nas colunas de princípio. É o mesmo site, no domínio do atendimento.
+
+  Os itens de cada serviço espelham o catálogo usado nos orçamentos. Nada aqui
+  fala de preço — isso é conversa, não tabela.
 */
 const servicos = [
   {
     id: 'suporte',
     numero: '01',
-    titulo: 'Suporte técnico',
+    titulo: 'Suporte Técnico',
     resumo:
-      'O computador que trava, esquenta, não liga ou ficou lento. Diagnóstico honesto antes de qualquer orçamento.',
-    itens: [
-      'Diagnóstico técnico e orçamento sem compromisso',
+      'Manutenção, recuperação e configuração de máquinas e redes — sem enrolação e sem software que te espiona.',
+    inclui: [
+      'Diagnóstico técnico antes de qualquer orçamento',
       'Remoção de vírus e malware',
       'Limpeza interna e troca de pasta térmica',
       'Instalação de SSD e memória RAM',
@@ -28,20 +33,21 @@ const servicos = [
       'Configuração de rede, Wi-Fi e impressoras',
       'Montagem e configuração de máquina nova',
     ],
-    comoFunciona: [
-      'Você me conta o problema pelo WhatsApp ou e-mail.',
-      'Eu abro o atendimento e mando um link com as perguntas certas para o seu caso.',
-      'Diagnostico antes de orçar — se não compensar consertar, eu digo.',
-      'Atendimento remoto quando dá, presencial quando o hardware exige.',
+    execucao: [
+      'Você descreve o problema. Eu pergunto o que falta e abro o atendimento.',
+      'Diagnostico antes de orçar. Se não compensar consertar, eu digo — mesmo perdendo o serviço.',
+      'O orçamento é fechado e escrito. Se aparecer algo no meio, eu paro e te consulto.',
+      'Remoto quando dá, presencial quando o hardware exige.',
     ],
+    ferramentas: ['Linux', 'Windows', 'Ventoy', 'GParted', 'smartctl', 'MemTest86', 'rsync'],
   },
   {
     id: 'seguranca',
     numero: '02',
-    titulo: 'Segurança & privacidade',
+    titulo: 'Segurança da Informação',
     resumo:
-      'Conta invadida, golpe pelo WhatsApp, senha repetida em tudo. Também o antes: deixar sua vida digital difícil de invadir.',
-    itens: [
+      'Descobrir o que está exposto antes que alguém descubra por você — e fechar a porta com o mínimo de atrito.',
+    inclui: [
       'Diagnóstico de segurança digital',
       'Gerenciador de senhas configurado e ensinado',
       'Verificação em duas etapas nas contas que importam',
@@ -49,22 +55,23 @@ const servicos = [
       'VPN e navegação sem rastreadores',
       'Proteção reforçada do sistema operacional',
       'Treinamento de boas práticas, em linguagem de gente',
-      'Assessoria mensal, se preferir acompanhamento contínuo',
+      'Assessoria mensal, para acompanhamento contínuo',
     ],
-    comoFunciona: [
+    execucao: [
       'Levanto o que você usa hoje e onde estão os riscos reais — não os teóricos.',
-      'Priorizo pelo que te protege mais com menos esforço.',
-      'Configuro junto com você, explicando cada passo.',
+      'Priorizo pelo que te protege mais com menos atrito no dia a dia.',
+      'Configuro junto com você, explicando cada escolha e o que ela custa.',
       'Você sai sabendo operar sozinho. Segurança que depende de mim não é segurança.',
     ],
+    ferramentas: ['Bitwarden', 'KeePassXC', 'Tailscale', 'WireGuard', 'Borg', 'restic', 'TOTP'],
   },
   {
     id: 'desenvolvimento',
     numero: '03',
-    titulo: 'Desenvolvimento & automação',
+    titulo: 'Desenvolvimento Web',
     resumo:
-      'Site, sistema interno ou aquela planilha que virou processo. Software sob medida, sem template genérico.',
-    itens: [
+      'Sites e sistemas rápidos, acessíveis e sem rastreadores. Você é dono do código e dos dados — não uma plataforma.',
+    inclui: [
       'Landing page e site institucional',
       'Sistema web sob medida e painéis administrativos',
       'Área de login e autenticação',
@@ -74,207 +81,320 @@ const servicos = [
       'Migração de dados de sistema antigo',
       'Hospedagem, implantação e manutenção',
     ],
-    comoFunciona: [
+    execucao: [
       'Conversa sobre o problema, não sobre a tecnologia.',
       'Escopo escrito, com prazo e valor fechados antes de começar.',
       'Você acompanha o andamento pelo código, sem precisar me cobrar.',
-      'Entrego com o código e a documentação nas suas mãos.',
+      'Entrego com o código-fonte e a documentação nas suas mãos.',
     ],
+    ferramentas: ['Astro', 'TypeScript', 'Python', 'FastAPI', 'SQLite', 'PostgreSQL', 'Docker'],
+  },
+];
+
+const principios = [
+  {
+    titulo: 'Preço antes do trabalho',
+    texto:
+      'O orçamento é fechado e escrito antes de eu encostar em qualquer coisa. Se surgir algo no meio do caminho, eu paro e te consulto — nunca apresento uma conta maior no fim.',
+  },
+  {
+    titulo: 'Diagnóstico honesto',
+    texto:
+      'Se não compensar consertar, eu digo. Se você não precisa contratar ninguém para isso, eu digo também. Perco o serviço e ganho alguém que volta.',
+  },
+  {
+    titulo: 'Nada fica preso comigo',
+    texto:
+      'Senhas nas suas mãos, código-fonte com você, dados exportáveis. Ferramenta livre sempre que existir equivalente. Você deve poder me trocar sem refazer nada.',
   },
 ];
 ---
 
 <Base
   titulo="NextLevelCode — Suporte técnico, segurança e desenvolvimento"
-  descricao="Suporte técnico, segurança digital e desenvolvimento sob medida. Diagnóstico honesto, orçamento fechado e acompanhamento do atendimento em tempo real."
+  descricao="Suporte técnico, segurança da informação e desenvolvimento web. Orçamento fechado antes do trabalho, diagnóstico honesto e acompanhamento do atendimento em tempo real."
   modo="site"
 >
   <section class="faixa faixa--hero">
     <div class="faixa__interno hero">
-    <p class="hero__etiqueta">Liberdade, privacidade e segurança</p>
-    <h1 class="hero__titulo">
-      Seu computador, suas contas e seus sistemas — cuidados por quem explica o que
-      está fazendo.
-    </h1>
-    <p class="hero__texto">
-      Atendo pessoas e pequenos negócios em três frentes: consertar o que quebrou,
-      proteger o que importa e construir o que falta. Sem jargão, sem pacote fechado
-      que você não entende, e sem prender ninguém a mim.
-    </p>
+      <div>
+        <p class="hero__olho">Suporte · Segurança · Web</p>
+        <h1 class="hero__titulo">
+          Seu atendimento,<br />
+          <span class="hero__destaque">do começo ao fim<span class="hero__ponto">.</span></span>
+        </h1>
+        <p class="hero__resumo">
+          Tecnologia construída sobre três coisas inegociáveis:{' '}
+          <strong>liberdade</strong>, <strong>privacidade</strong> e{' '}
+          <strong>segurança</strong>. Orçamento fechado antes do trabalho, e cada
+          passo do serviço visível para você.
+        </p>
 
-    <div class="hero__acoes">
-      <a class="btn" href="#acompanhar">Acompanhar meu atendimento →</a>
-      <a class="btn btn--secundario" href="mailto:work@nextlevelcode.pro">Falar comigo</a>
+        <div class="hero__acoes">
+          <a class="btn" href="#acompanhar">Acompanhar atendimento →</a>
+          <a class="btn btn--secundario" href="#servicos">Ver serviços</a>
+        </div>
+      </div>
+
+      {/* A marca em escala, como no institucional. Vetor e não o PNG: o
+          logo.png tem 256px e ficava borrado esticado até 420. `alt` vazio
+          porque o nome já está escrito no cabeçalho — repetir seria ruído no
+          leitor de tela. */}
+      <img class="hero__marca" src="/logo.svg" alt="" width="420" height="384" />
+    </div>
+  </section>
+
+  <section class="faixa" id="servicos" aria-labelledby="titulo-servicos">
+    <div class="faixa__interno">
+      <div class="secao__cabeca">
+        <div>
+          <p class="olho">O que eu faço</p>
+          <h2 class="titulo-secao" id="titulo-servicos">Três frentes, um mesmo princípio</h2>
+        </div>
+        <a class="link-secao" href="#acompanhar">Já é cliente? Acompanhe aqui ↗</a>
+      </div>
+
+      {
+        servicos.map((servico) => (
+          <article class="servico" id={servico.id}>
+            <header class="servico__topo">
+              <span class="servico__numero" aria-hidden="true">
+                {servico.numero}
+              </span>
+              <div>
+                <h3 class="servico__titulo">{servico.titulo}</h3>
+                <p class="servico__resumo">{servico.resumo}</p>
+              </div>
+            </header>
+
+            <div class="servico__colunas">
+              <div>
+                <p class="olho">Inclui</p>
+                <ul class="lista">
+                  {servico.inclui.map((item) => (
+                    <li>{item}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <p class="olho">Como é executado</p>
+                <ol class="passos">
+                  {servico.execucao.map((passo) => (
+                    <li>{passo}</li>
+                  ))}
+                </ol>
+
+                <p class="olho olho--ferramentas">Ferramentas</p>
+                <ul class="pilulas">
+                  {servico.ferramentas.map((f) => (
+                    <li class="pilula">{f}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="faixa faixa--destaque" aria-labelledby="titulo-principios">
+    <div class="faixa__interno">
+      <div class="secao__cabeca">
+        <div>
+          <p class="olho">Por quê</p>
+          <h2 class="titulo-secao" id="titulo-principios">O que você pode cobrar de mim</h2>
+        </div>
+      </div>
+
+      <div class="principios">
+        {
+          principios.map((p) => (
+            <div>
+              <h3 class="principio__titulo">{p.titulo}</h3>
+              {/* A régua ascendente da marca, uma por coluna — o mesmo uso do
+                  institucional. É onde o laranja aparece nesta seção. */}
+              <div class="rule" />
+              <p class="principio__texto">{p.texto}</p>
+            </div>
+          ))
+        }
       </div>
     </div>
   </section>
 
-  <section class="faixa" aria-labelledby="titulo-servicos">
+  <section class="faixa" aria-labelledby="titulo-fluxo">
     <div class="faixa__interno">
-      <h2 class="secao__titulo" id="titulo-servicos">O que eu faço</h2>
+      <div class="secao__cabeca">
+        <div>
+          <p class="olho">Como funciona</p>
+          <h2 class="titulo-secao" id="titulo-fluxo">Do primeiro contato ao relatório</h2>
+        </div>
+      </div>
 
-    {
-      servicos.map((servico) => (
-        <article class="servico" id={servico.id}>
-          <header class="servico__topo">
-            <span class="servico__numero" aria-hidden="true">
-              {servico.numero}
-            </span>
-            <div>
-              <h3 class="servico__titulo">{servico.titulo}</h3>
-              <p class="servico__resumo">{servico.resumo}</p>
-            </div>
-          </header>
-
-          <div class="servico__colunas">
-            <div>
-              <p class="rotulo">Inclui</p>
-              <ul class="lista">
-                {servico.itens.map((item) => (
-                  <li>{item}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <p class="rotulo">Como é executado</p>
-              <ol class="passos">
-                {servico.comoFunciona.map((passo) => (
-                  <li>{passo}</li>
-                ))}
-              </ol>
-            </div>
-          </div>
-        </article>
-      ))
-    }
-    </div>
-  </section>
-
-  <section class="faixa faixa--destaque" aria-labelledby="titulo-atendimento">
-    <div class="faixa__interno">
-      <h2 class="secao__titulo" id="titulo-atendimento">Como o atendimento acontece</h2>
-    <ol class="fluxo">
-      <li>
-        <strong>Você me procura</strong> pelo WhatsApp ou e-mail e conta o que está
-        acontecendo.
-      </li>
-      <li>
-        <strong>Eu abro o atendimento</strong> e envio um link com as perguntas do seu
-        caso. O link é só seu e vale uma vez.
-      </li>
-      <li>
-        <strong>Você recebe um código</strong> no fim do formulário — algo como{' '}
-        <span class="mono">NLC-XXXX-XXXX</span>.
-      </li>
-      <li>
-        <strong>Acompanha pelo código</strong> a qualquer momento, sem precisar me
-        perguntar como está. Cada passo aparece com data e hora.
-      </li>
-      <li>
-        <strong>Recebe o orçamento e o relatório</strong> em PDF, com o que foi
-        diagnosticado, o que foi feito e o que recomendo daqui pra frente.
-      </li>
+      <ol class="fluxo">
+        <li>
+          <strong>Você me procura</strong> e conta o que está acontecendo, em linguagem
+          normal.
+        </li>
+        <li>
+          <strong>Eu abro o atendimento</strong> e envio um link com as perguntas do
+          seu caso. O link é só seu e vale uma vez.
+        </li>
+        <li>
+          <strong>Você recebe um código</strong> ao enviar o formulário — algo como{' '}
+          <span class="mono">NLC-XXXX-XXXX</span>.
+        </li>
+        <li>
+          <strong>Acompanha por esse código</strong> a qualquer momento. Cada passo
+          aparece com data e hora, e você pode me mandar um recado por ali.
+        </li>
+        <li>
+          <strong>Recebe orçamento e relatório</strong> em PDF: o que foi
+          diagnosticado, o que foi feito e o que recomendo daqui pra frente.
+        </li>
       </ol>
     </div>
   </section>
 
   <section class="faixa" id="acompanhar" aria-labelledby="titulo-acompanhar">
     <div class="faixa__interno">
-    <h2 class="secao__titulo" id="titulo-acompanhar">Acompanhar um atendimento</h2>
-    <p class="texto-secao">
-      Já tem um código? Veja em que pé está o seu atendimento, com o histórico
-      completo — e mande um recado por ali se lembrar de algo.
-    </p>
+      <div class="chamada">
+        <div>
+          <h2 class="chamada__titulo" id="titulo-acompanhar">Acompanhar um atendimento</h2>
+          <p class="chamada__texto">
+            Já tem um código? Veja em que pé está o seu serviço, com o histórico
+            completo — e mande um recado por ali se lembrar de algo.
+          </p>
+        </div>
 
-    {/*
-      GET puro para /acompanhar.html?codigo=…, que a página já lê. Sem JavaScript:
-      um formulário que só monta uma URL não precisa de script, e assim ele
-      funciona antes de o JS carregar — ou se ele falhar.
-    */}
-    <form class="busca-codigo" action="/acompanhar.html" method="get">
-      <div class="campo">
-        <label for="codigo">Código do atendimento</label>
-        <input
-          type="text"
-          id="codigo"
-          name="codigo"
-          placeholder="NLC-XXXX-XXXX"
-          autocomplete="off"
-          spellcheck="false"
-          required
-        />
+        {/*
+          GET puro para /acompanhar.html?codigo=…, que a página já lê. Sem
+          JavaScript: um formulário que só monta uma URL não precisa de script, e
+          assim ele funciona antes de o JS carregar — ou se ele falhar.
+        */}
+        <form class="busca-codigo" action="/acompanhar.html" method="get">
+          <div class="campo">
+            <label for="codigo">Código do atendimento</label>
+            <input
+              type="text"
+              id="codigo"
+              name="codigo"
+              placeholder="NLC-XXXX-XXXX"
+              autocomplete="off"
+              spellcheck="false"
+              required
+            />
+          </div>
+          <button type="submit" class="btn">Acompanhar →</button>
+        </form>
       </div>
-      <button type="submit" class="btn">Acompanhar →</button>
-      </form>
     </div>
   </section>
 
   <section class="faixa faixa--contato">
-    <div class="faixa__interno contato">
-    <h2 class="secao__titulo">Vamos conversar</h2>
-    <p class="texto-secao">
-      Descreva o problema em uma frase — eu digo se resolvo, quanto custa e em quanto
-      tempo. Se não for a minha praia, indico quem faz.
-    </p>
-    <p class="contato__acoes">
-      <a class="btn btn--destaque" href="mailto:work@nextlevelcode.pro">
-        work@nextlevelcode.pro
-      </a>
-      </p>
+    <div class="faixa__interno">
+      <div class="chamada">
+        <div>
+          <h2 class="chamada__titulo">Tem um problema técnico para resolver?</h2>
+          <p class="chamada__texto">
+            Descreva a situação e eu respondo com um diagnóstico honesto — inclusive
+            se a resposta for "você não precisa contratar ninguém para isso".
+          </p>
+        </div>
+        <a class="btn btn--destaque" href="mailto:work@nextlevelcode.pro">
+          Começar uma conversa ↗
+        </a>
+      </div>
     </div>
   </section>
 </Base>
 
 <style>
   /* ── Faixas ───────────────────────────────────────────────
-     Cada seção ocupa a largura da janela e a coluna de leitura vive dentro.
-     É o que separa uma página de site de um formulário: o fundo alcança a
-     borda da tela, o texto para antes. */
+     Cada seção ocupa a largura da janela e a coluna de leitura vive dentro: o
+     fundo alcança a borda da tela, o texto para antes. */
 
   .faixa--hero {
-    padding-block: clamp(3rem, 9vw, 6.5rem) clamp(2.5rem, 6vw, 4.5rem);
+    padding-block: clamp(3rem, 8vw, 6rem) clamp(3rem, 7vw, 5rem);
+    /* Clarão sutil vindo do alto, como no institucional. Só azul — o guia da
+       marca proíbe gradiente que atravesse do azul ao laranja, porque o miolo
+       do caminho entre as duas sai acinzentado. */
+    background: radial-gradient(
+      120% 90% at 15% 0%,
+      color-mix(in oklab, var(--brand-blue) 12%, transparent),
+      transparent 60%
+    );
   }
 
-  /* Fundo de apoio marca a seção sem precisar de divisória. A régua ascendente
-     da marca é rara de propósito; empilhar cinco delas numa página só a
-     esvaziaria de significado. */
   .faixa--destaque {
     background: var(--bg-subtle);
     border-block: 1px solid var(--line);
     padding-block: clamp(2.5rem, 6vw, 4rem);
-    margin-block: clamp(2.5rem, 6vw, 4rem);
+  }
+
+  .faixa:not(.faixa--hero):not(.faixa--destaque) {
+    padding-block: clamp(2.5rem, 6vw, 4rem);
   }
 
   .faixa--contato {
-    padding-block-start: clamp(2.5rem, 6vw, 4rem);
+    padding-block-end: clamp(3rem, 7vw, 5rem);
   }
 
   /* ── Hero ─────────────────────────────────────────────── */
 
-  .hero__etiqueta {
+  .hero {
+    display: grid;
+    gap: 2rem;
+    align-items: center;
+  }
+
+  @media (min-width: 900px) {
+    .hero {
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      gap: 3rem;
+    }
+  }
+
+  .hero__olho {
     font-family: var(--font-heading);
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: var(--tracking-eyebrow);
-    color: var(--accent);
+    color: var(--text-muted);
     margin-bottom: 1rem;
   }
 
   .hero__titulo {
     font-family: var(--font-heading);
-    font-size: clamp(28px, 4.5vw, 42px);
+    font-size: clamp(32px, 5.5vw, 54px);
     font-weight: 700;
     line-height: var(--leading-tight);
-    letter-spacing: var(--tracking-tight);
-    max-width: 22ch;
+    letter-spacing: var(--tracking-tighter);
   }
 
-  .hero__texto {
-    margin-top: 1.25rem;
+  /* Azul na segunda linha e o ponto final em laranja: a mesma construção do
+     institucional. O laranja num caractere só é o acento pontual levado ao
+     extremo — e é por ser raro que ele significa alguma coisa. */
+  .hero__destaque {
+    color: var(--accent);
+  }
+
+  .hero__ponto {
+    color: var(--hot);
+  }
+
+  .hero__resumo {
+    margin-top: 1.5rem;
     color: var(--text-muted);
-    max-width: 62ch;
+    max-width: 54ch;
+  }
+
+  .hero__resumo strong {
+    color: var(--text);
+    font-weight: 600;
   }
 
   .hero__acoes {
@@ -284,47 +404,40 @@ const servicos = [
     margin-top: 2rem;
   }
 
-  /* `.btn` foi escrito para <button>; como <a> ele precisa do display e da
-     remoção do sublinhado para não virar um link com cara de botão. */
+  /* `.btn` foi escrito para <button>; como <a> precisa do display e da remoção
+     do sublinhado para não virar um link com cara de botão. */
   .hero__acoes .btn,
-  .contato__acoes .btn {
+  .chamada .btn {
     display: inline-block;
     text-decoration: none;
   }
 
-  /* ── Seções ───────────────────────────────────────────── */
-
-  .secao__titulo {
-    font-family: var(--font-heading);
-    font-size: 13px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: var(--tracking-eyebrow);
-    color: var(--text-muted);
-    margin-block: 2.5rem 1.5rem;
+  /* A marca em escala é ornamento, não conteúdo: em saturação cheia o laranja
+     do traço vira a cor dominante da dobra, e o guia pede laranja pontual. O
+     institucional resolve afundando o símbolo no fundo — é o que a opacidade
+     faz aqui, sem tocar no arquivo do logo. */
+  .hero__marca {
+    inline-size: 100%;
+    max-inline-size: 380px;
+    block-size: auto;
+    justify-self: center;
+    opacity: 0.6;
   }
 
-  .rotulo {
-    font-family: var(--font-heading);
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: var(--tracking-eyebrow);
-    /* --text-faint dá 4,04:1 e reprova para texto pequeno; --text-muted passa. */
-    color: var(--text-muted);
-    margin-bottom: 0.75rem;
-  }
-
-  .texto-secao {
-    color: var(--text-muted);
-    max-width: 62ch;
-    margin-bottom: 1.5rem;
+  @media (max-width: 899px) {
+    .hero__marca {
+      max-inline-size: 200px;
+      opacity: 0.4;
+    }
   }
 
   /* ── Serviços ─────────────────────────────────────────── */
 
+  /* Fio entre serviços, como as linhas do institucional. */
   .servico + .servico {
     margin-top: 3rem;
+    padding-top: 3rem;
+    border-top: 1px solid var(--line);
   }
 
   .servico__topo {
@@ -333,9 +446,7 @@ const servicos = [
     align-items: baseline;
   }
 
-  /* Laranja aqui e quase em nenhum outro lugar da página: numeração é um dos
-     usos pontuais que o guia da marca reserva a ele. Espalhá-lo pelas
-     divisórias o esvaziaria de significado. */
+  /* Laranja na numeração: um dos usos pontuais que o guia reserva a ele. */
   .servico__numero {
     font-family: var(--font-heading);
     font-size: 15px;
@@ -354,7 +465,7 @@ const servicos = [
   .servico__resumo {
     margin-top: 0.5rem;
     color: var(--text-muted);
-    max-width: 60ch;
+    max-width: 62ch;
   }
 
   .servico__colunas {
@@ -376,6 +487,10 @@ const servicos = [
     }
   }
 
+  .olho--ferramentas {
+    margin-top: 1.5rem;
+  }
+
   /* ── Listas ───────────────────────────────────────────── */
 
   .lista,
@@ -394,9 +509,8 @@ const servicos = [
     padding-inline-start: 1.4rem;
   }
 
-  /* O marcador repete os 58° do traço do logo. É a assinatura da marca no menor
-     elemento possível — a unidade vem de repetir o mesmo ângulo, não de
-     inventar um enfeite novo a cada bloco. */
+  /* O marcador repete os 58° do traço do logo. A unidade da marca vem de
+     repetir o mesmo ângulo, não de inventar um enfeite novo por bloco. */
   .lista li::before {
     content: '';
     position: absolute;
@@ -426,14 +540,40 @@ const servicos = [
     color: var(--accent);
   }
 
-  /* ── Fluxo do atendimento ─────────────────────────────── */
+  /* ── Princípios ───────────────────────────────────────── */
+
+  .principios {
+    display: grid;
+    gap: 2rem;
+  }
+
+  @media (min-width: 760px) {
+    .principios {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .principio__titulo {
+    font-family: var(--font-heading);
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+
+  .principio__texto {
+    margin-top: 1rem;
+    color: var(--text-muted);
+    font-size: 15px;
+  }
+
+  /* ── Fluxo ────────────────────────────────────────────── */
 
   .fluxo {
     list-style: none;
     counter-reset: etapa;
     display: grid;
     gap: 1rem;
-    max-width: 70ch;
+    max-width: 72ch;
   }
 
   .fluxo li {
@@ -465,19 +605,12 @@ const servicos = [
     gap: 0.75rem;
     align-items: flex-end;
     flex-wrap: wrap;
-    max-width: 32rem;
+    flex: 1 1 22rem;
+    max-width: 30rem;
   }
 
   .busca-codigo .campo {
-    flex: 1 1 16rem;
+    flex: 1 1 14rem;
     margin: 0;
-  }
-
-  .contato {
-    padding-block-end: 1rem;
-  }
-
-  .contato__acoes {
-    margin-top: 1.5rem;
   }
 </style>

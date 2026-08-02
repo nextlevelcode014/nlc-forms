@@ -407,7 +407,10 @@ const auditoria = (aberto) => `(() => {
     // Uma letra só abrindo a palavra é destaque de sigla, não espaço perdido.
     const sigla = t.length === 1 &&
       (!antes || antes.nodeType !== 3 || /[^\\p{L}\\p{N}]$/u.test(antes.textContent));
-    if (!folga(el, 'Left') && antes?.nodeType === 3 && /[\\p{L}\\p{N}]$/u.test(antes.textContent) && /^[\\p{L}\\p{N}]/u.test(t))
+    // Letra colada em letra, e também pontuação de fim de trecho colada em
+    // palavra: "inegociáveis:liberdade" passava porque ":" não é letra. Abre
+    // parêntese, aspas e cifrão ficam de fora — esses grudam de propósito.
+    if (!folga(el, 'Left') && antes?.nodeType === 3 && /[\\p{L}\\p{N},;:.!?]$/u.test(antes.textContent) && /^[\\p{L}\\p{N}]/u.test(t))
       p.push('palavra colada: …' + antes.textContent.slice(-12) + '⟨' + t.slice(0,12) + '⟩');
     if (!sigla && !folga(el, 'Right') && depois?.nodeType === 3 && /[\\p{L}\\p{N}]$/u.test(t) && /^[\\p{L}\\p{N}]/u.test(depois.textContent))
       p.push('palavra colada: ⟨' + t.slice(-12) + '⟩' + depois.textContent.slice(0,12) + '…');
@@ -568,6 +571,32 @@ async function rotasPadrao() {
   return [...new Set(achadas.map((r) => (r === '/index.html' ? '/' : r)))].sort();
 }
 
+/**
+ * Confere que quem atende em BASE é mesmo este frontend, antes de auditar.
+ *
+ * As rotas saem do `dist/` local, mas o navegador vai no servidor — e nada
+ * amarra os dois. Se outro projeto tiver tomado a porta (4321 é a padrão do
+ * Astro: qualquer site na máquina disputa ela), a auditoria mede a home alheia,
+ * leva 404 nas outras rotas e ainda assim imprime "5 rota(s) sem problemas".
+ * Aconteceu: o site institucional estava servindo em 4321 e a matriz inteira
+ * saiu verde auditando o site errado.
+ */
+async function conferirServidor(rotas) {
+  const faltando = [];
+  for (const rota of rotas) {
+    const r = await fetch(BASE + rota, { method: 'GET' }).catch(() => null);
+    if (!r) throw new Error(`${BASE} não respondeu — o servidor está no ar? Veja Run no SKILL.md.`);
+    if (!r.ok) faltando.push(`${rota} → ${r.status}`);
+  }
+  if (faltando.length) {
+    throw new Error(
+      `quem atende em ${BASE} não é o frontend "${projeto}":\n  ` +
+        faltando.join('\n  ') +
+        `\nOutro projeto tomou a porta? Confira com \`ss -ltnp\` ou aponte o alvo com SITE_URL.`,
+    );
+  }
+}
+
 // ---------------------------------------------------------------- comandos
 
 if (!comando || comando === 'help') {
@@ -636,6 +665,7 @@ try {
     console.log(`${saida}  (${rota} · ${projeto} · ${largura}px · ${tema})`);
   } else if (comando === 'audit') {
     const rotas = posicionais.length ? posicionais : await rotasPadrao();
+    await conferirServidor(rotas);
     let total = 0;
     let auditadas = 0;
     for (const rota of rotas) {

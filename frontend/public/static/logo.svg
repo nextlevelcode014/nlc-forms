@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 111.2 101.7" role="img" aria-label="NextLevelCode">
+  <!-- Marca vetorizada do PNG original (erro médio 1,3%). Polígonos preenchidos,
+       não traços: as pontas do original são cortes horizontais e inclinados que
+       stroke-linecap não reproduz. Sistema: 109,2 × 99,7 unidades. -->
+  <g fill="#FF7A00">
+    <path d="M29.98 49.46 L33.33 52.82 L13.19 99.69 L9.07 98.11 Z"/>
+    <path d="M104.70 10.75 L109.20 10.75 L64.87 98.92 L61.10 97.47 Z"/>
+  </g>
+  <path fill="#2196F3" d="M-0.07 94.70 L25.61 35.35 L33.05 35.35 L58.69 82.00 L99.53 0.15 L106.46 0.15 L58.95 95.36 L29.55 41.86 L5.73 96.93 Z"/>
+</svg>
