@@ -245,31 +245,18 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
-/* Uma cor por fase, não uma por passo: laranja é espera (a bola está com o
-   cliente ou com o fornecedor), azul é trabalho em andamento, verde é fim.
-   As classes acompanham os PASSOS de app/historico.py — passo novo sem regra
-   aqui cai no estilo base da .tag, que continua legível. */
-.tag--recebido,
-.tag--aguardando_aprovacao,
-.tag--aguardando_peca {
-  color: var(--hot);
-  background: var(--hot-quiet);
-}
+/* Aqui havia uma cor por fase — `.tag--recebido`, `.tag--em_execucao`,
+   `.tag--concluido` e companhia. Saíram junto com os PASSOS fixos de
+   app/historico.py: hoje o estado é o título que você escreve na hora, então
+   não existe classe previsível para casar. Voltar a pintar por nome exigiria
+   decretar o vocabulário de novo, que é justamente o que o andamento dinâmico
+   desfez. */
 
-.tag--em_analise,
-.tag--orcamento_enviado,
-.tag--em_execucao {
-  color: var(--accent);
-  background: var(--accent-quiet);
-}
-
-.tag--concluido {
-  color: var(--ok);
-  background: var(--ok-quiet);
-}
-
+/* `--text-muted` e não `--text-faint`: sobre `--bg-inset` o faint dava 4,44:1,
+   raspando o mínimo AA de 4,5. É texto pequeno (12px) numa coluna que se lê de
+   relance na lista — o lugar errado para economizar contraste. */
 .tag--sem_atendimento {
-  color: var(--text-faint);
+  color: var(--text-muted);
   background: var(--bg-inset);
 }
 

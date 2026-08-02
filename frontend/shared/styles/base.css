@@ -789,24 +789,25 @@ input[type='checkbox'] {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 2rem;
+  gap: 1.25rem 2rem;
   flex-wrap: wrap;
   background: var(--bg-raised);
   border: 1px solid var(--line);
   border-block-start: 2px solid var(--accent);
   border-radius: var(--radius);
-  padding: clamp(1.5rem, 4vw, 2.5rem);
+  padding: clamp(1.15rem, 2.2vw, 1.6rem) clamp(1.25rem, 3vw, 2rem);
 }
 
 .chamada__titulo {
   font-family: var(--font-heading);
-  font-size: clamp(18px, 2.4vw, 24px);
+  font-size: clamp(17px, 2vw, 21px);
   font-weight: 600;
   letter-spacing: var(--tracking-tight);
 }
 
 .chamada__texto {
-  margin-top: 0.6rem;
+  margin-top: 0.35rem;
   color: var(--text-muted);
   max-width: 52ch;
+  font-size: 14px;
 }

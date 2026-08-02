@@ -258,9 +258,13 @@ const principios = [
     </div>
   </section>
 
-  <section class="faixa" id="acompanhar" aria-labelledby="titulo-acompanhar">
-    <div class="faixa__interno">
-      <div class="chamada">
+  {/* As duas chamadas moram na mesma faixa de propósito: são o par de saídas do
+      site — quem já é cliente entra pelo código, quem não é começa a conversa.
+      Em faixas separadas cada uma trazia a folga vertical inteira da seção, e o
+      par lia como dois assuntos distantes em vez de uma escolha. */}
+  <div class="faixa faixa--chamadas">
+    <div class="faixa__interno chamadas">
+      <section class="chamada" id="acompanhar" aria-labelledby="titulo-acompanhar">
         <div>
           <h2 class="chamada__titulo" id="titulo-acompanhar">Acompanhar um atendimento</h2>
           <p class="chamada__texto">
@@ -289,15 +293,11 @@ const principios = [
           </div>
           <button type="submit" class="btn">Acompanhar →</button>
         </form>
-      </div>
-    </div>
-  </section>
+      </section>
 
-  <section class="faixa faixa--contato">
-    <div class="faixa__interno">
-      <div class="chamada">
+      <section class="chamada" aria-labelledby="titulo-contato">
         <div>
-          <h2 class="chamada__titulo">Tem um problema técnico para resolver?</h2>
+          <h2 class="chamada__titulo" id="titulo-contato">Tem um problema técnico para resolver?</h2>
           <p class="chamada__texto">
             Descreva a situação e eu respondo com um diagnóstico honesto — inclusive
             se a resposta for "você não precisa contratar ninguém para isso".
@@ -306,9 +306,9 @@ const principios = [
         <a class="btn btn--destaque" href="mailto:work@nextlevelcode.pro">
           Começar uma conversa ↗
         </a>
-      </div>
+      </section>
     </div>
-  </section>
+  </div>
 </Base>
 
 <style>
@@ -334,12 +334,23 @@ const principios = [
     padding-block: clamp(2.5rem, 6vw, 4rem);
   }
 
-  .faixa:not(.faixa--hero):not(.faixa--destaque) {
+  .faixa:not(.faixa--hero):not(.faixa--destaque):not(.faixa--chamadas) {
     padding-block: clamp(2.5rem, 6vw, 4rem);
   }
 
-  .faixa--contato {
-    padding-block-end: clamp(3rem, 7vw, 5rem);
+  /* A faixa das chamadas precisa entrar aqui no `:not()` acima, e não numa regra
+     própria depois: os `:not()` valem especificidade, e a regra que ficava
+     abaixo (`.faixa--contato`) perdia para ela — a folga extra antes do rodapé
+     que ela pedia nunca chegou a valer. */
+  .faixa--chamadas {
+    padding-block: clamp(2.5rem, 6vw, 4rem) clamp(3rem, 7vw, 5rem);
+  }
+
+  /* Perto, mas ainda duas caixas: a borda azul de cada uma continua marcando
+     onde uma acaba e a outra começa. */
+  .chamadas {
+    display: grid;
+    gap: 0.75rem;
   }
 
   /* ── Hero ─────────────────────────────────────────────── */
