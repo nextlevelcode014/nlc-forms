@@ -317,7 +317,7 @@ const principios = [
      fundo alcança a borda da tela, o texto para antes. */
 
   .faixa--hero {
-    padding-block: clamp(3rem, 8vw, 6rem) clamp(3rem, 7vw, 5rem);
+    padding-block: clamp(2rem, 4.5vw, 3.25rem) clamp(1.75rem, 4vw, 2.75rem);
     /* Clarão sutil vindo do alto, como no institucional. Só azul — o guia da
        marca proíbe gradiente que atravesse do azul ao laranja, porque o miolo
        do caminho entre as duas sai acinzentado. */
@@ -331,11 +331,11 @@ const principios = [
   .faixa--destaque {
     background: var(--bg-subtle);
     border-block: 1px solid var(--line);
-    padding-block: clamp(2.5rem, 6vw, 4rem);
+    padding-block: clamp(1.75rem, 3.5vw, 2.5rem);
   }
 
   .faixa:not(.faixa--hero):not(.faixa--destaque):not(.faixa--chamadas) {
-    padding-block: clamp(2.5rem, 6vw, 4rem);
+    padding-block: clamp(1.75rem, 3.5vw, 2.5rem);
   }
 
   /* A faixa das chamadas precisa entrar aqui no `:not()` acima, e não numa regra
@@ -343,7 +343,7 @@ const principios = [
      abaixo (`.faixa--contato`) perdia para ela — a folga extra antes do rodapé
      que ela pedia nunca chegou a valer. */
   .faixa--chamadas {
-    padding-block: clamp(2.5rem, 6vw, 4rem) clamp(3rem, 7vw, 5rem);
+    padding-block: clamp(1.75rem, 3.5vw, 2.5rem) clamp(2rem, 4vw, 3rem);
   }
 
   /* Perto, mas ainda duas caixas: a borda azul de cada uma continua marcando
@@ -357,14 +357,14 @@ const principios = [
 
   .hero {
     display: grid;
-    gap: 2rem;
+    gap: 1.5rem;
     align-items: center;
   }
 
   @media (min-width: 900px) {
     .hero {
-      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-      gap: 3rem;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+      gap: 2.5rem;
     }
   }
 
@@ -375,7 +375,7 @@ const principios = [
     text-transform: uppercase;
     letter-spacing: var(--tracking-eyebrow);
     color: var(--text-muted);
-    margin-bottom: 1rem;
+    margin-bottom: 0.6rem;
   }
 
   .hero__titulo {
@@ -398,7 +398,7 @@ const principios = [
   }
 
   .hero__resumo {
-    margin-top: 1.5rem;
+    margin-top: 1rem;
     color: var(--text-muted);
     max-width: 54ch;
   }
@@ -412,7 +412,7 @@ const principios = [
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
-    margin-top: 2rem;
+    margin-top: 1.35rem;
   }
 
   /* `.btn` foi escrito para <button>; como <a> precisa do display e da remoção
@@ -429,7 +429,7 @@ const principios = [
      faz aqui, sem tocar no arquivo do logo. */
   .hero__marca {
     inline-size: 100%;
-    max-inline-size: 380px;
+    max-inline-size: 300px;
     block-size: auto;
     justify-self: center;
     opacity: 0.6;
@@ -437,7 +437,7 @@ const principios = [
 
   @media (max-width: 899px) {
     .hero__marca {
-      max-inline-size: 200px;
+      max-inline-size: 160px;
       opacity: 0.4;
     }
   }
@@ -446,8 +446,8 @@ const principios = [
 
   /* Fio entre serviços, como as linhas do institucional. */
   .servico + .servico {
-    margin-top: 3rem;
-    padding-top: 3rem;
+    margin-top: 1.75rem;
+    padding-top: 1.75rem;
     border-top: 1px solid var(--line);
   }
 
@@ -474,15 +474,15 @@ const principios = [
   }
 
   .servico__resumo {
-    margin-top: 0.5rem;
+    margin-top: 0.4rem;
     color: var(--text-muted);
     max-width: 62ch;
   }
 
   .servico__colunas {
     display: grid;
-    gap: 2rem;
-    margin-top: 1.75rem;
+    gap: 1.25rem 2rem;
+    margin-top: 1.1rem;
     padding-inline-start: calc(1.25rem + 2ch);
   }
 
@@ -499,7 +499,7 @@ const principios = [
   }
 
   .olho--ferramentas {
-    margin-top: 1.5rem;
+    margin-top: 1rem;
   }
 
   /* ── Listas ───────────────────────────────────────────── */
@@ -509,7 +509,7 @@ const principios = [
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    gap: 0.4rem;
     font-size: 15px;
     color: var(--text-muted);
   }
@@ -555,7 +555,7 @@ const principios = [
 
   .principios {
     display: grid;
-    gap: 2rem;
+    gap: 1.25rem 2rem;
   }
 
   @media (min-width: 760px) {
@@ -568,11 +568,11 @@ const principios = [
     font-family: var(--font-heading);
     font-size: 17px;
     font-weight: 600;
-    margin-bottom: 1rem;
+    margin-bottom: 0.7rem;
   }
 
   .principio__texto {
-    margin-top: 1rem;
+    margin-top: 0.7rem;
     color: var(--text-muted);
     font-size: 15px;
   }
@@ -583,9 +583,16 @@ const principios = [
     list-style: none;
     counter-reset: etapa;
     display: grid;
-    gap: 1rem;
+    gap: 0.55rem;
     max-width: 72ch;
   }
+
+  /* Tentei duas colunas aqui para gastar a faixa vazia à direita: não valeu.
+     A grade preenche por linha, então a leitura pulava 01 → 02 de lado e só
+     depois descia — numa lista numerada isso briga com o próprio número. E não
+     economizou altura: em coluna única cada passo cabe numa linha, em duas ele
+     quebra em duas. Espaço vazio ao lado de uma coluna de leitura é de graça;
+     ordem confusa não é. */
 
   .fluxo li {
     counter-increment: etapa;
