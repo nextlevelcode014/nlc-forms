@@ -686,6 +686,13 @@ try {
     if (total) {
       console.log(`\n${total} problema(s) em ${auditadas} rota(s).  (${contexto})`);
       falhou = true;
+    } else if (!auditadas) {
+      // Zero rota auditada não é sucesso — era o que saía ao pedir a tela de
+      // atendimento direto pela URL: ela redireciona para `/` (a chave de admin
+      // vive só em memória e não sobrevive à navegação), todas as rotas eram
+      // puladas e o driver imprimia um ✓ tendo medido nada.
+      console.log(`✗ nenhuma rota auditada — todas redirecionaram.  (${contexto})`);
+      falhou = true;
     } else {
       console.log(`✓ ${auditadas} rota(s) sem problemas  (${contexto})`);
     }
