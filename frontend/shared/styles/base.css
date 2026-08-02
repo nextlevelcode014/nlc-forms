@@ -48,6 +48,17 @@ body {
   margin-inline: auto;
 }
 
+/* O `.cabecalho` traz padding só embaixo, para afastar o fio divisor. No modo
+   formulário isso bastava, porque o `.container` já dava respiro em volta; no
+   modo site a faixa vai até a borda da janela e a marca encostava no topo — 0px
+   acima, 24px abaixo, visivelmente fora de centro dentro da própria faixa.
+   O respiro de cima tem de vir daqui: a regra genérica de padding das faixas
+   mora no <style> da home, que é escopado e não alcança o cabeçalho, montado
+   pelo Base.astro. */
+.faixa--cabecalho {
+  padding-block-start: 1.5rem;
+}
+
 .faixa--cabecalho .cabecalho {
   margin-bottom: 0;
 }
