@@ -22,9 +22,18 @@ uv run pytest -q                              # suíte inteira
 uv run pytest tests/test_routes.py -q         # um arquivo
 uv run pytest tests/test_relatorio_md.py::test_sumario_com_links -q   # um teste
 uv run python seed_dados.py                   # popula banco vazio (idempotente)
+
+bun install                                   # só para mexer no schema
+bun run generate                              # drizzle/schema.ts → drizzle/migrations/*.sql
 ```
 
 Não há linter nem formatter configurado no backend.
+
+`bun run generate` **pede TTY**: quando o Drizzle não consegue decidir sozinho se
+uma coluna foi renomeada ou trocada, ele pergunta. Rodado por um agente sem
+terminal ele trava — quem roda é você. Não force um TTY falso (`script -qec` e
+parentes): a resposta errada nessa pergunta gera `DROP COLUMN` + `ADD COLUMN` em
+vez de `RENAME COLUMN`, e aí a migração apaga os dados da coluna em silêncio.
 
 ### Frontend (dois projetos Astro 7 em workspaces bun)
 
@@ -48,9 +57,40 @@ chegar na API.
 
 ## Arquitetura
 
-Cliente preenche um formulário público (Vercel) → API no Raspberry Pi → você
-atende pelo painel interno (só na tailnet) → gera PDF de orçamento e/ou
-relatório técnico em Markdown.
+Você cadastra o cliente e gera um link de uso único → ele preenche o formulário
+público (Vercel) → API no Raspberry Pi → você atende pelo painel interno (só na
+tailnet) → o cliente acompanha por um código, como rastreio de encomenda → sai
+PDF de orçamento e/ou relatório técnico em Markdown.
+
+### O cliente é pasta, não cópia
+
+`clientes` é a raiz: e-mail único e normalizado. Token, triagens, execução e
+histórico penduram nele por `cliente_id`, com `ON DELETE CASCADE`. As triagens
+**não** guardam mais nome, e-mail e telefone — era o que fazia o mesmo cliente
+existir três vezes com três grafias do próprio nome.
+
+Quem decide de quem é a triagem é o `cliente_id` gravado no **token**, nunca o
+que foi digitado na tela. Por isso o mesmo cliente abre quantos atendimentos
+quiser, em serviços diferentes, sem colidir — e um erro de digitação não cria
+pasta fantasma.
+
+### Estado derivado, nunca guardado
+
+O estado do atendimento é **o título do último evento visível** de `historico`
+(`app/historico.py::estado_atual`, e a subquery `ESTADO_ATUAL` em
+`routers/admin.py`). Não existe coluna `status` em `execucao` — ela foi removida
+de propósito.
+
+Guardar uma cópia foi exatamente o que produziu os bugs desta base: um caminho
+gravava o evento e não o status, e o cliente via o atendimento parado enquanto
+ele andava. Sem cópia não há divergência, e apagar um evento devolve o estado
+anterior sozinho.
+
+**Não há lista de etapas predefinida.** Quem escreve o título de cada passo é
+você, na hora; as sugestões (`/admin/titulos`) vêm do que já foi usado antes —
+aprendidas, não decretadas. Sete passos fixos prometiam um caminho que nem sempre
+existe: projeto de desenvolvimento não espera peça nenhuma. Ao mexer aqui, não
+reintroduza vocabulário fixo.
 
 ### Dois níveis de exposição — a separação é o ponto do projeto
 
@@ -67,16 +107,37 @@ não troque `serve` por `funnel` no alvo do painel.
 
 1. **Campos de triagem ↔ colunas do SQLite.** `frontend/shared/lib/triagem.ts`
    define os campos; os `nome` batem 1:1 com as colunas de `triagem_suporte` /
-   `triagem_seguranca` / `triagem_desenvolvimento` em `backend/app/database.py`.
+   `triagem_seguranca` / `triagem_desenvolvimento` em `backend/drizzle/schema.ts`.
    O INSERT é montado a partir das chaves do modelo Pydantic
    (`app/routers/triagem.py::_registrar_triagem`), então renomear de um lado só
    quebra sem erro claro. O painel também lê esses rótulos — há uma única lista.
 
-2. **Schema sem ORM e sem migração.** As tabelas nascem de
-   `CREATE TABLE IF NOT EXISTS` no boot. Coluna nova **não** alcança banco
-   existente: mudança de schema em produção pede `ALTER TABLE` manual.
+   A exceção é o bloco de contato: `nome` e `telefone` são retirados do payload
+   (`CAMPOS_DE_CONTATO`) e atualizam a ficha do cliente em vez de virarem coluna.
 
-3. **URLs `.html`.** Ambos os `astro.config.mjs` usam `build.format: 'file'`.
+2. **Schema no Drizzle, migração em Python.** `backend/drizzle/schema.ts` é a
+   fonte da verdade. `bun run generate` compara com o histórico e escreve um
+   `.sql` numerado em `drizzle/migrations/` — versionado no git. Quem aplica é
+   `app/migrar.py`, no boot, com o `sqlite3` da stdlib: assim o Pi não precisa de
+   Node nem bun para subir a API.
+
+   A consequência a não esquecer: **as consultas continuam em SQL puro no
+   Python**. Renomear uma coluna no `schema.ts` gera a migração certa e não
+   reescreve nenhum SELECT. O Drizzle aqui é ferramenta de autoria, não ORM.
+
+   `app/migrar.py` é idempotente (tabela de controle `_migracoes`), corta os
+   comandos em `--> statement-breakpoint` e roda cada arquivo na sua própria
+   transação — falha no meio volta atrás e não registra a tag.
+
+3. **Métodos HTTP no CORS.** `allow_methods` em `app/__init__.py` lista os verbos
+   um a um. Ficou em `GET/POST/OPTIONS` enquanto o painel já chamava PUT e
+   DELETE: o navegador barrava no *preflight* e a ação não acontecia, **sem erro
+   na tela**. Rota nova com verbo novo pede a entrada aqui.
+
+   Isto não aparece no `curl` — ele não faz preflight. Mudança de escrita se
+   verifica pelo navegador (a skill `run-site`), não por `curl`.
+
+4. **URLs `.html`.** Ambos os `astro.config.mjs` usam `build.format: 'file'`.
    Mudar para o padrão `directory` transforma `/triagem-suporte.html` em
    `/triagem-suporte/` e quebra todo link de token já enviado a cliente.
 
@@ -108,7 +169,18 @@ propósito (SSRF).
   simultâneas.
 - Rate limit em memória por IP + rota; o container roda com `--proxy-headers`
   porque atrás do Funnel o IP real chega no `X-Forwarded-For`.
-- `execucao.observacoes_internas` nunca aparece em PDF.
+- `execucao.observacoes_internas` nunca aparece em PDF nem na página do cliente;
+  `clientes.notas` também não.
+- **O acompanhamento é aberto pelo código, e só.** `/acompanhar/{codigo}` não
+  pede senha — o código é o segredo, como no rastreio dos Correios. Por isso a
+  resposta é *curada* (`routers/acompanhar.py`), não o dump da triagem: sai o
+  estado, a linha do tempo visível e o contato. Não acrescente campo ali sem
+  perguntar se ele pode ser lido por quem achar o código.
+- Evento com `visivel_cliente = 0` fica só no seu histórico. É o que permite
+  anotar sem publicar.
+- O cliente pode corrigir contato e mandar recado pelo acompanhamento, mas
+  **não** trocar o e-mail: e-mail é a identidade da pasta, e deixá-lo editável
+  por quem tem o código seria mover atendimento de pasta sem autenticação.
 
 ### Configuração e tempo
 
@@ -134,5 +206,11 @@ de usar — sem abrir os portões (`--destravar`, `--token` ou `--admin-key`) a
 auditoria enxerga só a tela de bloqueio.
 
 A auditoria é determinística; número diferente entre duas rodadas iguais é bug do
-driver, não flutuação. Ela **não passa limpa hoje** — os achados abertos estão
-listados no SKILL.md.
+driver, não flutuação. Hoje ela **passa limpa** nos dois projetos com
+`--destravar`, nas quatro combinações de tema × largura — então achado novo é
+regressão do seu commit, não ruído herdado.
+
+O driver confere antes de auditar que quem atende em `SITE_URL` é mesmo aquele
+frontend. A 4321 é a porta padrão do Astro e qualquer outro projeto da máquina
+disputa ela; sem essa checagem a matriz inteira sai verde tendo medido o site
+errado, com 404 nas rotas que não existem lá. Já aconteceu.

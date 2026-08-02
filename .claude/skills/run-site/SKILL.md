@@ -128,8 +128,13 @@ Sem rotas na linha de comando, ele varre os `.html` de
 ele audita acompanha as páginas sozinho. Não mantenha lista de rotas à mão: lista
 fixa apodrece e o servidor estático responde a rota morta com a página errada.
 
-Não há sitemap aqui (o público é `noindex` de propósito — é formulário de
-cliente, não conteúdo indexável), por isso a fonte das rotas é o `dist/`.
+Não há sitemap aqui, por isso a fonte das rotas é o `dist/`. Só a home é
+indexável; formulário e acompanhamento carregam dado de cliente e saem
+`noindex` de propósito — dá para conferir isso no próprio `dist/`:
+
+```bash
+grep -o '<meta name="robots"[^>]*>' frontend/public/dist/*.html
+```
 
 Cobertura completa antes de dar trabalho visual por concluído — os dois temas
 importam porque `tokens.css` tem valores diferentes para cada um:
@@ -140,11 +145,11 @@ for t in dark light; do for w in 1440 390; do
 done; done
 ```
 
-Saída verificada: `7 problema(s) em 4 rota(s)` nas quatro combinações — mesmo
-número, mesmos achados, mesmas razões de contraste. São ~0,5s por combinação (4
-páginas pequenas), então a matriz inteira cabe numa chamada só. **A auditoria é
-determinística**: dois números diferentes para a mesma combinação significam bug
-no driver, não flutuação — foi assim que os dois gotchas de medição apareceram.
+Saída verificada: `✓ 5 rota(s) sem problemas` nas quatro combinações. São ~0,5s
+por combinação (5 páginas pequenas), então a matriz inteira cabe numa chamada só.
+**A auditoria é determinística**: dois números diferentes para a mesma combinação
+significam bug no driver, não flutuação — foi assim que os dois gotchas de
+medição apareceram.
 
 O que ele detecta:
 
@@ -161,18 +166,45 @@ O contraste ignora quem tem `background-image` (gradiente não tem uma cor só p
 medir) e compõe as camadas translúcidas até achar uma opaca — o `.container` é
 `color-mix(..., transparent)` e sozinho não diz nada.
 
-**Estado atual: a auditoria não passa limpa.** Os achados abaixo são reais e
-foram conferidos na fonte — não trate como ruído do driver:
+### Antes de auditar, o driver confere o servidor
 
-| onde | achado |
+As rotas saem do `dist/` local, mas o navegador vai no servidor — e nada amarra
+os dois. A 4321 é a porta padrão do Astro: qualquer outro projeto da máquina
+disputa ela. Com o site institucional servindo ali, a matriz inteira saiu
+`✓ 5 rota(s) sem problemas` tendo medido o site errado, com 404 em quatro das
+cinco rotas.
+
+Agora o `audit` busca cada rota antes de abrir o navegador e recusa rodar se
+alguma não devolver 200:
+
+```
+✗ quem atende em http://localhost:4321 não é o frontend "public":
+  /acompanhar.html → 404
+```
+
+Se a porta estiver tomada, veja de quem é (`ss -ltnp`) e aponte o alvo com
+`SITE_URL=http://localhost:4399`. Para trabalho visual isso basta; só volte para
+a porta oficial quando precisar da API, que é onde o `ALLOWED_ORIGINS` importa.
+
+### Estado atual: passa limpa
+
+Verificado nas quatro combinações de tema × largura:
+
+| alvo | resultado |
 |---|---|
-| `.rodape` (público e painel) | `--text-faint` dá 4,22:1 no escuro e 4,20:1 no claro |
-| `.btn` | `color: #fff` sobre `--brand-blue` cru = 3,12:1, com 15px/600 — e um hex literal, que o próprio `base.css` proíbe |
-| `.aba` "Sair" | 4,06:1 |
-| `<th>` da lista de clientes | 3,93:1 (só aparece com `--admin-key`) |
-| `.tag` "Sem atendimento" | 3,80:1 (idem) |
-| `<select id="status">` (Atendimento.astro) | sem `<label for>` |
-| `<input id="link-gerado">` (Token.astro) | sem `<label for>` |
+| `public --destravar` | `✓ 5 rota(s) sem problemas` |
+| `public` (portões fechados) | `✓ 5 rota(s) sem problemas` |
+| `admin --destravar` | `✓ 1 rota(s) sem problemas` |
+
+Achado novo é regressão do commit em questão, não ruído herdado. Os contrastes
+que apareciam antes foram corrigidos na origem: `--acao` e `--acao-forte` em
+`tokens.css` existem porque o azul e o laranja crus do guia dão 3,12:1 e 2,61:1
+sob texto branco. Não os troque pelos hex do guia.
+
+**O que ainda não foi auditado:** `/painel-atendimento.html` redireciona para `/`
+sem chave, então a matriz acima o pula. A tela de atendimento — lista de
+clientes, tags, linha do tempo — só entra na auditoria com `--admin-key` e a API
+no ar. Rode assim depois de mexer no painel.
 
 ### Screenshot
 

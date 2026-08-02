@@ -34,8 +34,16 @@ const site = modo === 'site';
     <link rel="icon" type="image/png" href="/favicon.png" />
 
     <!-- Formulários e acompanhamento carregam dado de cliente e não devem
-         aparecer em busca. A home é a exceção: ela é a vitrine. -->
-    <meta name="robots" content={Astro.url.pathname === '/' ? 'index, follow' : 'noindex, nofollow'} />
+         aparecer em busca. A home é a exceção: ela é a vitrine.
+
+         Os dois caminhos importam: com `build.format: 'file'` o pathname da home
+         na hora do build é `/index.html`, não `/`. Comparar só com `/` deixava a
+         vitrine sair `noindex` no dist — a página que existe justamente para ser
+         achada era a única que ninguém acharia. -->
+    <meta
+      name="robots"
+      content={['/', '/index.html'].includes(Astro.url.pathname) ? 'index, follow' : 'noindex, nofollow'}
+    />
 
     <Font cssVariable="--font-display" preload />
     <Font cssVariable="--font-body" preload />

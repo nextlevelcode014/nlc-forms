@@ -1,8 +1,23 @@
 @startuml
 
+' Fonte da verdade: backend/drizzle/schema.ts
+' Este diagrama é desenho; o schema é o que roda. Ao mexer num, confira o outro.
+
+entity clientes {
+  *id : INTEGER
+  --
+  *nome : TEXT
+  *email : TEXT <<unique, normalizado>>
+  telefone : TEXT
+  notas : TEXT <<nunca sai em PDF>>
+  *criado_em : TEXT
+  *atualizado_em : TEXT
+}
+
 entity tokens {
   *token : TEXT
   --
+  *cliente_id : INTEGER <<FK cascade>>
   *servico : TEXT
   *criado_em : TEXT
   *expira_em : TEXT
@@ -14,12 +29,10 @@ entity tokens {
 entity triagem_suporte {
   *id : INTEGER
   --
-  *codigo : TEXT
+  *codigo : TEXT <<unique>>
+  *cliente_id : INTEGER <<FK cascade>>
   token : TEXT
   *criado_em : TEXT
-  *nome : TEXT
-  *email : TEXT
-  telefone : TEXT
   *problema : TEXT
   *quando : TEXT
   causa : TEXT
@@ -39,12 +52,10 @@ entity triagem_suporte {
 entity triagem_seguranca {
   *id : INTEGER
   --
-  *codigo : TEXT
+  *codigo : TEXT <<unique>>
+  *cliente_id : INTEGER <<FK cascade>>
   token : TEXT
   *criado_em : TEXT
-  *nome : TEXT
-  *email : TEXT
-  telefone : TEXT
   *perfil : TEXT
   *dispositivos : TEXT
   *servicos : TEXT
@@ -61,12 +72,10 @@ entity triagem_seguranca {
 entity triagem_desenvolvimento {
   *id : INTEGER
   --
-  *codigo : TEXT
+  *codigo : TEXT <<unique>>
+  *cliente_id : INTEGER <<FK cascade>>
   token : TEXT
   *criado_em : TEXT
-  *nome : TEXT
-  *email : TEXT
-  telefone : TEXT
   *tipo_cliente : TEXT
   *tipo_projeto : TEXT
   *descricao : TEXT
@@ -92,15 +101,14 @@ entity catalogo_itens {
 entity execucao {
   *id : INTEGER
   --
-  *codigo : TEXT
+  *codigo : TEXT <<unique>>
   *servico : TEXT
   *criado_em : TEXT
   atualizado_em : TEXT
-  *status : TEXT
   diagnostico : TEXT
   servicos_realizados : TEXT
   recomendacoes : TEXT
-  observacoes_internas : TEXT
+  observacoes_internas : TEXT <<nunca sai em PDF>>
   itens_json : TEXT
   valor_total : REAL
   data_atendimento : TEXT
@@ -108,8 +116,66 @@ entity execucao {
   pdf_gerado_em : TEXT
 }
 
-tokens ||--o{ triagem_suporte : token
-tokens ||--o{ triagem_seguranca : token
-tokens ||--o{ triagem_desenvolvimento : token
+entity historico {
+  *id : INTEGER
+  --
+  *codigo : TEXT
+  *titulo : TEXT <<escrito na hora>>
+  detalhe : TEXT
+  *origem : TEXT <<sistema|admin|cliente>>
+  *visivel_cliente : INTEGER
+  *criado_em : TEXT
+}
+
+entity relatorios_md {
+  *id : INTEGER
+  --
+  *codigo : TEXT
+  *titulo : TEXT
+  subtitulo : TEXT
+  descricao : TEXT
+  versao : TEXT
+  *markdown : TEXT <<o PDF é montado na hora>>
+  *criado_em : TEXT
+  *atualizado_em : TEXT
+}
+
+entity _migracoes {
+  *tag : TEXT
+  --
+  *aplicada_em : TEXT
+}
+
+clientes ||--o{ tokens : cliente_id
+clientes ||--o{ triagem_suporte : cliente_id
+clientes ||--o{ triagem_seguranca : cliente_id
+clientes ||--o{ triagem_desenvolvimento : cliente_id
+
+tokens ||--o| triagem_suporte : token
+tokens ||--o| triagem_seguranca : token
+tokens ||--o| triagem_desenvolvimento : token
+
+triagem_suporte ||--o| execucao : codigo
+triagem_seguranca ||--o| execucao : codigo
+triagem_desenvolvimento ||--o| execucao : codigo
+
+execucao ||--o{ historico : codigo
+execucao ||--o{ relatorios_md : codigo
+
+note bottom of execucao
+  Não há coluna `status`.
+  O estado do atendimento é o título do
+  último evento visível do `historico` —
+  derivado, nunca guardado. Uma cópia foi
+  o que já deixou a régua do cliente parada
+  enquanto o atendimento andava.
+end note
+
+note bottom of clientes
+  A pasta. O e-mail é a identidade e vive
+  aqui, não dentro de cada triagem: era isso
+  que fazia o mesmo cliente existir três
+  vezes com três grafias do próprio nome.
+end note
 
 @enduml

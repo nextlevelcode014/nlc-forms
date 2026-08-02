@@ -30,15 +30,20 @@ package "Servidor Casa\n(Tailscale Funnel)" {
 
   note bottom of api
     Endpoints publicos:
-    GET  /triagem/{servico}?token=
-    GET  /consulta/{codigo}
+    POST /triagem/{servico}?token=
     GET  /token/{token}/validar
+    GET  /acompanhar/{codigo}
+    POST /acompanhar/{codigo}/contato
+    POST /acompanhar/{codigo}/mensagem
 
     Endpoints privados (admin):
     POST /admin/gerar-token
+    GET  /admin/clientes
+    GET  /admin/clientes/{id}
     GET  /admin/triagens
     GET  /admin/triagem/{codigo}
     POST /admin/execucao
+    POST /admin/historico
     GET  /admin/relatorio/{codigo}.pdf
     POST /admin/enviar-pdf
     GET  /admin/catalogo

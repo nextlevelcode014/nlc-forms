@@ -2,10 +2,14 @@
 
 Sistema de triagem, atendimento e relatório de clientes — NextLevelCode.
 
-O cliente recebe um link de uso único, preenche a triagem e ganha um código de
-acompanhamento. Você atende pelo painel, monta o orçamento, gera o PDF e — se o
-caso pedir — escreve um relatório técnico em Markdown que sai no template da
-marca.
+Você cadastra o cliente e manda um link de uso único. Ele preenche a triagem e
+ganha um código de acompanhamento — dali em diante vê o andamento em tempo real,
+como quem rastreia uma encomenda. Você atende pelo painel, monta o orçamento,
+gera o PDF e — se o caso pedir — escreve um relatório técnico em Markdown que sai
+no template da marca.
+
+Cada cliente é uma **pasta**: um e-mail, e sob ele todos os atendimentos, de
+qualquer serviço, ao longo do tempo.
 
 Tudo roda em infraestrutura própria: a API e o painel ficam no Raspberry Pi, e só
 os formulários públicos são hospedados fora.
@@ -18,12 +22,19 @@ nlc-forms/
 │   ├── app/                   # FastAPI modular
 │   │   ├── config.py          #   Settings (pydantic-settings) — valida no boot
 │   │   ├── tempo.py           #   Datas em UTC + conversão para Brasília
-│   │   ├── database.py        #   SQLite — init, seed, get_db
+│   │   ├── database.py        #   SQLite — get_db, aplica migrações, seed
+│   │   ├── migrar.py          #   Aplica os .sql do Drizzle no boot
+│   │   ├── clientes.py        #   A pasta: e-mail normalizado, busca, criação
+│   │   ├── historico.py       #   Linha do tempo e estado derivado
 │   │   ├── models.py          #   Modelos Pydantic
 │   │   ├── auth.py            #   Tokens, admin key, validação
 │   │   ├── notify.py          #   Notificação por e-mail (SMTP)
 │   │   ├── ratelimit.py       #   Rate limiter em memória
-│   │   └── routers/           #   admin, triagem, consulta, token, health
+│   │   └── routers/           #   admin, clientes, triagem, acompanhar,
+│   │                          #   token, health
+│   ├── drizzle/               # Schema versionado
+│   │   ├── schema.ts          #   Fonte da verdade das tabelas
+│   │   └── migrations/*.sql   #   Geradas pelo drizzle-kit, aplicadas em Python
 │   ├── marca/                 # Identidade visual dos PDFs — fonte única
 │   │   ├── cores.py           #   Paleta do guia-marca.md
 │   │   ├── fontes.py          #   Registro de Poppins/Inter no reportlab
@@ -39,13 +50,15 @@ nlc-forms/
 │   └── Dockerfile
 ├── frontend/                  # Monorepo Astro (bun workspaces)
 │   ├── shared/                # Comum aos dois — nunca vira site sozinho
-│   │   ├── lib/               #   api.ts, admin.ts, triagem.ts
+│   │   ├── lib/               #   api, admin, triagem, clientes, acompanhar,
+│   │   │                      #   titulos
 │   │   ├── styles/            #   tokens.css, base.css
 │   │   └── components/        #   Cabecalho, Rodape
-│   ├── public/                # Formulários públicos → Vercel
-│   │   └── src/pages/         #   index + 3 triagens (URLs .html preservadas)
+│   ├── public/                # Site e formulários públicos → Vercel
+│   │   └── src/pages/         #   home (vitrine dos serviços), acompanhar
+│   │                          #   + 3 triagens (URLs .html preservadas)
 │   └── admin/                 # Painel interno → só na tailnet
-│       └── src/               #   app de página única: lista, atendimento, token
+│       └── src/               #   pastas de clientes, atendimento, token
 ├── docs/
 │   ├── arquitetura.puml       # Diagrama da arquitetura
 │   ├── db.puml                # Diagrama das tabelas
@@ -71,12 +84,13 @@ nlc-forms/
   │  (só HTML/JS)  │                     │  (não sai da rede) │
   └───────┬────────┘                     └─────────┬──────────┘
           │ POST /triagem/{servico}?token=         │ X-Admin-Key
+          │ GET  /acompanhar/{codigo}              │
           ▼                                        ▼
        ┌──────────────────────────────────────────────────┐
        │            Raspberry Pi (sua casa)               │
        │   FastAPI + SQLite  ·  Docker  ·  reportlab      │
-       │   /triagem/*, /token/*, /consulta   → público    │
-       │   /admin/*                          → admin key  │
+       │   /triagem/*, /token/*, /acompanhar/* → público  │
+       │   /admin/*                            → admin key│
        │   exposto por Tailscale Funnel na porta 8000     │
        └───────────────────────┬──────────────────────────┘
                                │
@@ -100,18 +114,45 @@ Diagramas completos em [`docs/arquitetura.puml`](docs/arquitetura.puml) e
 
 ```
 1. Cliente conversa com você no WhatsApp
-2. Você abre o painel → aba "Gerar token" → gera um link de acesso único
-3. Manda o link para o cliente
-4. Cliente abre, preenche a triagem, recebe um código (NLC-XXXX-XXXX)
-5. Você recebe um e-mail de notificação (se SMTP configurado)
-6. O e-mail leva direto ao cliente no painel; ou você busca pelo código na lista
+2. Você abre o painel → cadastra a pasta dele (nome, e-mail, telefone)
+   — ou escolhe a pasta que já existe, se ele já é cliente
+3. Gera um link de acesso único para o serviço em questão
+4. Manda o link para o cliente
+5. Cliente abre, preenche a triagem, recebe um código (NLC-XXXX-XXXX)
+6. Você recebe um e-mail de notificação (se SMTP configurado)
 7. Preenche diagnóstico, serviços realizados, recomendações e itens de orçamento
-8. Gera o PDF de orçamento — ou envia por e-mail direto do painel
-9. Se o caso pedir, escreve um relatório técnico em Markdown e baixa o PDF
+8. A cada passo, registra um evento no andamento — é o que o cliente lê
+9. Gera o PDF de orçamento — ou envia por e-mail direto do painel
+10. Se o caso pedir, escreve um relatório técnico em Markdown e baixa o PDF
 ```
+
+O passo 2 antes não existia: a triagem criava o cadastro a partir do que fosse
+digitado no formulário. O mesmo cliente virava três registros com três grafias do
+próprio nome, e o mesmo e-mail em dois serviços colidia. Agora o `cliente_id`
+viaja no token — quem diz de quem é a triagem é o link, não a digitação.
 
 A chave de admin é digitada **uma vez por sessão** e vive só em memória: nunca vai
 para `localStorage` nem para o disco. Recarregar a página desloga, de propósito.
+
+## Acompanhamento pelo cliente
+
+Com o código em mãos, o cliente abre `/acompanhar.html` e vê o estado atual, a
+linha do tempo com data e hora de cada passo, e o contato registrado. Pode
+corrigir telefone e nome, e mandar um recado que aparece no seu painel.
+
+**O código é a credencial** — não há senha, como no rastreio dos Correios. Por
+isso a resposta é curada e não o despejo da triagem: quem achar o código não lê
+as respostas do formulário nem suas anotações internas. O e-mail não é editável
+por ali: ele é a identidade da pasta, e trocá-lo moveria o atendimento de lugar
+sem autenticação nenhuma.
+
+O andamento **não tem etapas predefinidas**. A fita começa vazia e só ganha
+marcas conforme você registra os eventos, com o texto que fizer sentido para
+aquele caso. Uma lista fixa prometeria um caminho que nem sempre existe — projeto
+de desenvolvimento não espera peça chegar. As sugestões de título vêm do que você
+já usou antes.
+
+Eventos marcados como internos ficam no seu histórico e não aparecem para ele.
 
 ## Rodar localmente
 
@@ -376,8 +417,13 @@ domínio — nenhuma requisição do visitante vai para o Google.
 ## Dados de exemplo
 
 Com `SEED_DEMO=true` no `.env`, o `seed_dados.py` popula um banco vazio com 3
-clientes fictícios (um de cada serviço), com triagem, execução e itens de
-orçamento preenchidos — úteis para testar o fluxo inteiro.
+pastas fictícias (uma por serviço), com triagem, execução e itens de orçamento
+preenchidos.
+
+> O seed **não** escreve no `historico`, então os três abrem sem andamento
+> nenhum: a fita aparece vazia e o acompanhamento não mostra estado. Uma triagem
+> de verdade nasce com o evento "Triagem recebida". Para exercitar o andamento
+> com esses dados, registre um evento pelo painel.
 
 **Em produção deixe `SEED_DEMO=false`** (o padrão), senão os fictícios entram no
 banco real.
@@ -439,22 +485,60 @@ exportar CSV. Os dados moram no volume `nlc-forms_forms_data`.
 
 ## Banco de dados
 
-Sem ORM e sem migração: o schema é criado com `CREATE TABLE IF NOT EXISTS` no boot
-(`backend/app/database.py`). Isso significa que **coluna nova não alcança banco que
-já existe** — mudança de schema em produção pede `ALTER TABLE` na mão.
+O schema mora em [`backend/drizzle/schema.ts`](backend/drizzle/schema.ts) e as
+migrações são versionadas em `backend/drizzle/migrations/`.
 
 | Tabela | O que guarda |
 |---|---|
-| `tokens` | Links de acesso único: `servico`, `expira_em`, `usado`, `nota` |
+| `clientes` | A pasta: nome, e-mail (único), telefone, suas notas privadas |
+| `tokens` | Links de acesso único: `cliente_id`, `servico`, `expira_em`, `usado` |
 | `triagem_suporte` | Respostas do formulário de suporte |
 | `triagem_seguranca` | Respostas do formulário de segurança |
 | `triagem_desenvolvimento` | Respostas do formulário de dev |
 | `catalogo_itens` | Itens de orçamento com preço sugerido por serviço |
 | `execucao` | O atendimento: diagnóstico, serviços, recomendações, itens, total |
+| `historico` | A linha do tempo: cada evento com hora, origem e visibilidade |
 | `relatorios_md` | Relatórios técnicos: o Markdown e os metadados da capa |
+| `_migracoes` | Controle interno de quais migrações já rodaram |
 
-Toda triagem tem `codigo` (NLC-XXXX-XXXX) e o `token` usado no acesso.
-`execucao.observacoes_internas` não aparece em PDF nenhum.
+Toda triagem tem `codigo` (NLC-XXXX-XXXX), o `token` usado no acesso e o
+`cliente_id` da pasta. Apagar um cliente leva junto tokens, triagens, execução e
+histórico (`ON DELETE CASCADE`).
+
+Nem `execucao.observacoes_internas` nem `clientes.notas` aparecem em PDF ou na
+página do cliente.
+
+**Não existe coluna `status`.** O estado do atendimento é sempre o título do
+último evento visível do `historico` — derivado, nunca guardado. Uma cópia do
+estado foi o que já fez a régua do cliente ficar parada enquanto o atendimento
+andava: um caminho gravava o evento e esquecia o status. Assim não há como
+divergir, e apagar um evento devolve o estado anterior sozinho.
+
+### Migrações
+
+O Drizzle é ferramenta de **autoria**, não de runtime — ele não roda no Pi.
+
+```bash
+cd backend
+# 1. edite drizzle/schema.ts
+bun install         # uma vez
+bun run generate    # escreve drizzle/migrations/NNNN_nome.sql
+# 2. revise o .sql gerado e versione junto com o schema
+```
+
+Quem aplica é `app/migrar.py`, no boot, com o `sqlite3` da stdlib: é o que evita
+instalar Node e bun numa imagem `python:3.14-slim` só para criar tabela. Ele é
+idempotente, roda cada arquivo na própria transação e registra o que já aplicou
+em `_migracoes` — subir o container duas vezes não repete nada.
+
+> `bun run generate` **pergunta** quando não consegue decidir sozinho se uma
+> coluna foi renomeada ou substituída, então precisa de terminal de verdade.
+> Responder errado gera `DROP COLUMN` + `ADD COLUMN` em vez de `RENAME COLUMN`, e
+> a migração apaga os dados daquela coluna sem avisar. Confira o `.sql` antes de
+> commitar.
+
+O que **não** muda sozinho: as consultas seguem em SQL puro no Python. Renomear
+uma coluna no `schema.ts` gera a migração certa e não reescreve nenhum `SELECT`.
 
 ## Endpoints
 
@@ -465,13 +549,23 @@ Toda triagem tem `codigo` (NLC-XXXX-XXXX) e o `token` usado no acesso.
 | POST | `/triagem/suporte` | Cliente envia a triagem de suporte |
 | POST | `/triagem/seguranca` | Cliente envia a triagem de segurança |
 | POST | `/triagem/desenvolvimento` | Cliente envia a triagem de dev |
-| GET | `/consulta?codigo=X` | Consulta pública por código |
-| GET | `/consulta?email=X` | Consulta por e-mail (requer admin) |
-| POST | `/admin/gerar-token` | Gera link de triagem |
+| GET | `/acompanhar/{codigo}` | Estado, linha do tempo e contato — só o código |
+| POST | `/acompanhar/{codigo}/contato` | Cliente corrige nome/telefone |
+| POST | `/acompanhar/{codigo}/mensagem` | Cliente manda um recado |
+| POST | `/admin/gerar-token` | Gera link de triagem para um cliente |
+| GET | `/admin/clientes` | Lista as pastas, com busca |
+| POST | `/admin/clientes` | Cria a pasta do cliente |
+| GET | `/admin/clientes/{id}` | A pasta: dados + todos os atendimentos |
+| PUT | `/admin/clientes/{id}` | Edita a ficha |
+| DELETE | `/admin/clientes/{id}` | Apaga a pasta e tudo que pende dela |
 | GET | `/admin/triagens` | Lista com filtros e paginação |
-| GET | `/admin/triagem/{codigo}` | Triagem + execução de um cliente |
+| GET | `/admin/triagem/{codigo}` | Triagem + execução + histórico |
+| DELETE | `/admin/triagem/{codigo}` | Apaga um atendimento |
 | GET | `/admin/catalogo?servico=X` | Itens do catálogo |
 | POST | `/admin/execucao` | Salva o atendimento |
+| POST | `/admin/historico` | Registra um evento no andamento |
+| DELETE | `/admin/historico/{id}` | Apaga um evento (o estado volta ao anterior) |
+| GET | `/admin/titulos` | Títulos de evento já usados — as sugestões |
 | GET | `/admin/relatorio/{codigo}.pdf` | PDF de orçamento |
 | POST | `/admin/enviar-pdf` | Envia o PDF por e-mail ao cliente |
 | POST | `/admin/relatorios-md` | Cria relatório técnico |

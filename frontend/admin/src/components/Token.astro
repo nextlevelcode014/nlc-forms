@@ -72,7 +72,10 @@ const servicos = Object.entries(ROTULO_SERVICO);
 
 <div id="resultado-token" class="cartao" hidden>
   <div class="cartao__topo">
-    <span class="cartao__titulo">Link gerado</span>
+    {/* `label` e não `span`: o título do cartão já era o texto que descreve o
+        campo abaixo — sem o `for`, o leitor de tela anunciava só "campo de
+        texto" e clicar no título não focava nada. */}
+    <label class="cartao__titulo" for="link-gerado">Link gerado</label>
   </div>
 
   <div class="caixa-link">
